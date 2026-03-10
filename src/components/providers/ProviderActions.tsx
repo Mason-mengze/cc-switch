@@ -3,12 +3,12 @@ import {
   Check,
   Copy,
   Edit,
-  // Loader2, // Hidden: stream check feature disabled
+  Loader2,
   Minus,
   Play,
   Plus,
   Terminal,
-  // TestTube2, // Hidden: stream check feature disabled
+  TestTube2,
   Trash2,
   Zap,
 } from "lucide-react";
@@ -24,7 +24,6 @@ interface ProviderActionsProps {
   isTesting?: boolean;
   isProxyTakeover?: boolean;
   isOmo?: boolean;
-  isLastOmo?: boolean;
   onSwitch: () => void;
   onEdit: () => void;
   onDuplicate: () => void;
@@ -46,14 +45,13 @@ export function ProviderActions({
   appId,
   isCurrent,
   isInConfig = false,
-  isTesting: _isTesting, // Hidden: stream check feature disabled
+  isTesting,
   isProxyTakeover = false,
   isOmo = false,
-  isLastOmo = false,
   onSwitch,
   onEdit,
   onDuplicate,
-  onTest: _onTest, // Hidden: stream check feature disabled
+  onTest,
   onConfigureUsage,
   onDelete,
   onRemoveFromConfig,
@@ -192,11 +190,7 @@ export function ProviderActions({
 
   const buttonState = getMainButtonState();
 
-  const canDelete = isOmo
-    ? !(isLastOmo && isCurrent)
-    : isAdditiveMode
-      ? true
-      : !isCurrent;
+  const canDelete = isOmo || isAdditiveMode ? true : !isCurrent;
 
   return (
     <div className="flex items-center gap-1.5">
@@ -252,7 +246,6 @@ export function ProviderActions({
           <Copy className="h-4 w-4" />
         </Button>
 
-        {/* Hidden: stream check feature disabled
         {onTest && (
           <Button
             size="icon"
@@ -269,7 +262,6 @@ export function ProviderActions({
             )}
           </Button>
         )}
-        */}
 
         <Button
           size="icon"

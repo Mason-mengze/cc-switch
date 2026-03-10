@@ -13,7 +13,11 @@ use super::{
         CLAUDE_PARSER_CONFIG, CODEX_PARSER_CONFIG, GEMINI_PARSER_CONFIG, OPENAI_PARSER_CONFIG,
     },
     handler_context::RequestContext,
-    providers::{get_adapter, streaming::create_anthropic_sse_stream, transform},
+    providers::{
+        get_adapter, get_claude_api_format, streaming::create_anthropic_sse_stream,
+        streaming_responses::create_anthropic_sse_stream_from_responses, transform,
+        transform_responses,
+    },
     response_processor::{create_logged_passthrough_stream, process_response, SseUsageCollector},
     server::ProxyState,
     types::*,
@@ -22,6 +26,7 @@ use super::{
 };
 use crate::app_config::AppType;
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use bytes::Bytes;
 use serde_json::{json, Value};
 
 // ============================================================================
@@ -107,7 +112,7 @@ pub async fn handle_messages(
 
 /// Claude 格式转换处理（独有逻辑）
 ///
-/// 处理 OpenRouter 旧 OpenAI 兼容接口的回退方案（当前默认不启用）
+/// 支持 OpenAI Chat Completions 和 Responses API 两种格式的转换
 async fn handle_claude_transform(
     response: reqwest::Response,
     ctx: &RequestContext,
@@ -116,11 +121,18 @@ async fn handle_claude_transform(
     is_stream: bool,
 ) -> Result<axum::response::Response, ProxyError> {
     let status = response.status();
+    let api_format = get_claude_api_format(&ctx.provider);
 
     if is_stream {
-        // 流式响应转换 (OpenAI SSE → Anthropic SSE)
+        // 根据 api_format 选择流式转换器
         let stream = response.bytes_stream();
-        let sse_stream = create_anthropic_sse_stream(stream);
+        let sse_stream: Box<
+            dyn futures::Stream<Item = Result<Bytes, std::io::Error>> + Send + Unpin,
+        > = if api_format == "openai_responses" {
+            Box::new(Box::pin(create_anthropic_sse_stream_from_responses(stream)))
+        } else {
+            Box::new(Box::pin(create_anthropic_sse_stream(stream)))
+        };
 
         // 创建使用量收集器
         let usage_collector = {
@@ -186,7 +198,7 @@ async fn handle_claude_transform(
         return Ok((headers, body).into_response());
     }
 
-    // 非流式响应转换 (OpenAI → Anthropic)
+    // 非流式响应转换 (OpenAI/Responses → Anthropic)
     let response_headers = response.headers().clone();
 
     let body_bytes = response.bytes().await.map_err(|e| {
@@ -196,12 +208,18 @@ async fn handle_claude_transform(
 
     let body_str = String::from_utf8_lossy(&body_bytes);
 
-    let openai_response: Value = serde_json::from_slice(&body_bytes).map_err(|e| {
-        log::error!("[Claude] 解析 OpenAI 响应失败: {e}, body: {body_str}");
-        ProxyError::TransformError(format!("Failed to parse OpenAI response: {e}"))
+    let upstream_response: Value = serde_json::from_slice(&body_bytes).map_err(|e| {
+        log::error!("[Claude] 解析上游响应失败: {e}, body: {body_str}");
+        ProxyError::TransformError(format!("Failed to parse upstream response: {e}"))
     })?;
 
-    let anthropic_response = transform::openai_to_anthropic(openai_response).map_err(|e| {
+    // 根据 api_format 选择非流式转换器
+    let anthropic_response = if api_format == "openai_responses" {
+        transform_responses::responses_to_anthropic(upstream_response)
+    } else {
+        transform::openai_to_anthropic(upstream_response)
+    }
+    .map_err(|e| {
         log::error!("[Claude] 转换响应失败: {e}");
         e
     })?;
@@ -326,6 +344,47 @@ pub async fn handle_responses(
         .forward_with_retry(
             &AppType::Codex,
             "/responses",
+            body,
+            headers,
+            ctx.get_providers(),
+        )
+        .await
+    {
+        Ok(result) => result,
+        Err(mut err) => {
+            if let Some(provider) = err.provider.take() {
+                ctx.provider = provider;
+            }
+            log_forward_error(&state, &ctx, is_stream, &err.error);
+            return Err(err.error);
+        }
+    };
+
+    ctx.provider = result.provider;
+    let response = result.response;
+
+    process_response(response, &ctx, &state, &CODEX_PARSER_CONFIG).await
+}
+
+/// 处理 /v1/responses/compact 请求（OpenAI Responses Compact API - Codex CLI 透传）
+pub async fn handle_responses_compact(
+    State(state): State<ProxyState>,
+    headers: axum::http::HeaderMap,
+    Json(body): Json<Value>,
+) -> Result<axum::response::Response, ProxyError> {
+    let mut ctx =
+        RequestContext::new(&state, &body, &headers, AppType::Codex, "Codex", "codex").await?;
+
+    let is_stream = body
+        .get("stream")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let forwarder = ctx.create_forwarder(&state);
+    let result = match forwarder
+        .forward_with_retry(
+            &AppType::Codex,
+            "/responses/compact",
             body,
             headers,
             ctx.get_providers(),

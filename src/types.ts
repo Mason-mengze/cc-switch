@@ -128,6 +128,8 @@ export interface ProviderProxyConfig {
 export interface ProviderMeta {
   // 自定义端点：以 URL 为键，值为端点信息
   custom_endpoints?: Record<string, CustomEndpoint>;
+  // 是否在切换/同步到 live 时应用通用配置片段
+  commonConfigEnabled?: boolean;
   // 用量查询脚本配置
   usage_script?: UsageScript;
   // 请求地址管理：测速后自动选择最佳端点
@@ -147,13 +149,14 @@ export interface ProviderMeta {
   // Claude API 格式（仅 Claude 供应商使用）
   // - "anthropic": 原生 Anthropic Messages API 格式，直接透传
   // - "openai_chat": OpenAI Chat Completions 格式，需要格式转换
-  apiFormat?: "anthropic" | "openai_chat";
+  // - "openai_responses": OpenAI Responses API 格式，需要格式转换
+  apiFormat?: "anthropic" | "openai_chat" | "openai_responses";
   // 供应商类型（用于识别 Copilot 等特殊供应商）
   providerType?: string;
-  // Claude 认证字段名（仅 Claude 供应商使用）
-  // - "ANTHROPIC_AUTH_TOKEN" (默认): 大多数第三方/聚合供应商
-  // - "ANTHROPIC_API_KEY": 少数供应商需要原生 API Key
-  apiKeyField?: "ANTHROPIC_AUTH_TOKEN" | "ANTHROPIC_API_KEY";
+  // Claude 认证字段名
+  apiKeyField?: ClaudeApiKeyField;
+  // Prompt cache key for OpenAI-compatible endpoints (improves cache hit rate)
+  promptCacheKey?: string;
   // GitHub Copilot 关联账号 ID（仅 github_copilot 供应商使用）
   // 用于多账号支持，关联到特定的 GitHub 账号
   githubAccountId?: string;
@@ -165,11 +168,10 @@ export type SkillSyncMethod = "auto" | "symlink" | "copy";
 // Claude API 格式类型
 // - "anthropic": 原生 Anthropic Messages API 格式，直接透传
 // - "openai_chat": OpenAI Chat Completions 格式，需要格式转换
-export type ClaudeApiFormat = "anthropic" | "openai_chat";
+// - "openai_responses": OpenAI Responses API 格式，需要格式转换
+export type ClaudeApiFormat = "anthropic" | "openai_chat" | "openai_responses";
 
 // Claude 认证字段类型
-// - "ANTHROPIC_AUTH_TOKEN": 大多数第三方/聚合供应商使用（默认）
-// - "ANTHROPIC_API_KEY": 少数供应商需要原生 API Key
 export type ClaudeApiKeyField = "ANTHROPIC_AUTH_TOKEN" | "ANTHROPIC_API_KEY";
 
 // 主页面显示的应用配置
@@ -181,7 +183,7 @@ export interface VisibleApps {
   openclaw: boolean;
 }
 
-// WebDAV v2 同步状态
+// WebDAV 同步状态
 export interface WebDavSyncStatus {
   lastSyncAt?: number | null;
   lastError?: string | null;
@@ -191,7 +193,7 @@ export interface WebDavSyncStatus {
   lastRemoteManifestHash?: string | null;
 }
 
-// WebDAV v2 同步配置
+// WebDAV 同步配置
 export interface WebDavSyncSettings {
   enabled?: boolean;
   autoSync?: boolean;
@@ -203,14 +205,20 @@ export interface WebDavSyncSettings {
   status?: WebDavSyncStatus;
 }
 
+export type RemoteSnapshotLayout = "current" | "legacy";
+
 // 远端快照信息（下载前预览）
 export interface RemoteSnapshotInfo {
   deviceName: string;
   createdAt: string;
   snapshotId: string;
   version: number;
+  protocolVersion: number;
+  dbCompatVersion?: number | null;
   compatible: boolean;
   artifacts: string[];
+  layout: RemoteSnapshotLayout;
+  remotePath: string;
 }
 
 // 应用设置类型（用于设置对话框与 Tauri API）
@@ -235,6 +243,14 @@ export interface Settings {
   proxyConfirmed?: boolean;
   // User has confirmed the usage query first-run notice
   usageConfirmed?: boolean;
+  // User has confirmed the stream check first-run notice
+  streamCheckConfirmed?: boolean;
+  // Whether to show the failover toggle independently on the main page
+  enableFailoverToggle?: boolean;
+  // User has confirmed the failover toggle first-run notice
+  failoverConfirmed?: boolean;
+  // User has confirmed the auto-sync traffic warning
+  autoSyncConfirmed?: boolean;
   // 首选语言（可选，默认中文）
   language?: "en" | "zh" | "ja";
 
@@ -493,6 +509,19 @@ export interface OpenClawModelCatalogEntry {
   alias?: string;
 }
 
+export interface OpenClawHealthWarning {
+  code: string;
+  message: string;
+  path?: string;
+}
+
+export interface OpenClawWriteOutcome {
+  backupPath?: string;
+  warnings: OpenClawHealthWarning[];
+}
+
+export type OpenClawToolsProfile = "minimal" | "coding" | "messaging" | "full";
+
 // OpenClaw 供应商配置（settings_config 结构）
 // 对应 OpenClaw 的 models.providers.<provider-id> 配置
 export interface OpenClawProviderConfig {
@@ -500,12 +529,15 @@ export interface OpenClawProviderConfig {
   apiKey?: string; // API 密钥
   api?: string; // API 协议类型（如 "openai-completions"、"anthropic"）
   models?: OpenClawModel[]; // 可用模型列表
+  headers?: Record<string, string>; // 自定义请求头（如 User-Agent）
 }
 
 // OpenClaw agents.defaults 完整配置
 export interface OpenClawAgentsDefaults {
   model?: OpenClawDefaultModel;
   models?: Record<string, OpenClawModelCatalogEntry>;
+  timeoutSeconds?: number;
+  timeout?: number;
   [key: string]: unknown; // preserve unknown fields
 }
 
@@ -516,7 +548,7 @@ export interface OpenClawEnvConfig {
 
 // OpenClaw tools 配置（openclaw.json 的 tools 节点）
 export interface OpenClawToolsConfig {
-  profile?: string;
+  profile?: OpenClawToolsProfile | string;
   allow?: string[];
   deny?: string[];
   [key: string]: unknown; // preserve unknown fields

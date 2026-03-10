@@ -42,6 +42,10 @@ interface OpenClawFormFieldsProps {
   // Models
   models: OpenClawModel[];
   onModelsChange: (models: OpenClawModel[]) => void;
+
+  // User-Agent
+  userAgent: boolean;
+  onUserAgentChange: (checked: boolean) => void;
 }
 
 export function OpenClawFormFields({
@@ -58,6 +62,8 @@ export function OpenClawFormFields({
   onApiChange,
   models,
   onModelsChange,
+  userAgent,
+  onUserAgentChange,
 }: OpenClawFormFieldsProps) {
   const { t } = useTranslation();
   const [expandedModels, setExpandedModels] = useState<Record<number, boolean>>(
@@ -205,6 +211,21 @@ export function OpenClawFormFields({
         partnerPromotionKey={partnerPromotionKey}
       />
 
+      {/* User-Agent */}
+      <div className="flex items-center justify-between">
+        <div className="space-y-0.5">
+          <FormLabel>
+            {t("openclaw.userAgent", { defaultValue: "发送 User-Agent" })}
+          </FormLabel>
+          <p className="text-xs text-muted-foreground">
+            {t("openclaw.userAgentHint", {
+              defaultValue: "部分供应商需要浏览器 User-Agent 才能正常访问。",
+            })}
+          </p>
+        </div>
+        <Switch checked={userAgent} onCheckedChange={onUserAgentChange} />
+      </div>
+
       {/* Models Editor */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -236,6 +257,24 @@ export function OpenClawFormFields({
                 key={modelKeys[index]}
                 className="p-3 border border-border/50 rounded-lg space-y-3"
               >
+                {/* Role badge */}
+                <div className="flex items-center">
+                  <span
+                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                      index === 0
+                        ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {index === 0
+                      ? t("openclaw.primaryModel", {
+                          defaultValue: "默认模型",
+                        })
+                      : t("openclaw.fallbackModel", {
+                          defaultValue: "回退模型",
+                        })}
+                  </span>
+                </div>
                 {/* Model ID and Name row */}
                 <div className="flex items-center gap-2">
                   <div className="flex-1 space-y-1">
@@ -463,7 +502,7 @@ export function OpenClawFormFields({
         <p className="text-xs text-muted-foreground">
           {t("openclaw.modelsHint", {
             defaultValue:
-              "配置该供应商支持的模型。模型 ID 用于 API 调用，显示名称用于界面展示。",
+              "配置该供应商支持的模型。第一个模型为默认模型（Primary），其余为回退模型（Fallback）。拖拽或调整顺序可更改默认模型。",
           })}
         </p>
       </div>

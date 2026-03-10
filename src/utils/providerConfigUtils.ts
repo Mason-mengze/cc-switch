@@ -1,7 +1,88 @@
 // 供应商配置处理工具函数
 
 import type { TemplateValueConfig } from "../config/claudeProviderPresets";
-import { normalizeQuotes } from "@/utils/textNormalization";
+import { normalizeQuotes, normalizeTomlText } from "@/utils/textNormalization";
+import { parse as parseToml, stringify as stringifyToml } from "smol-toml";
+
+const isPlainObject = (value: unknown): value is Record<string, any> => {
+  return Object.prototype.toString.call(value) === "[object Object]";
+};
+
+const deepMerge = (
+  target: Record<string, any>,
+  source: Record<string, any>,
+): Record<string, any> => {
+  Object.entries(source).forEach(([key, value]) => {
+    if (isPlainObject(value)) {
+      if (!isPlainObject(target[key])) {
+        target[key] = {};
+      }
+      deepMerge(target[key], value);
+    } else {
+      // 直接覆盖非对象字段（数组/基础类型）
+      target[key] = value;
+    }
+  });
+  return target;
+};
+
+const deepRemove = (
+  target: Record<string, any>,
+  source: Record<string, any>,
+) => {
+  Object.entries(source).forEach(([key, value]) => {
+    if (!(key in target)) return;
+
+    if (isPlainObject(value) && isPlainObject(target[key])) {
+      // 只移除完全匹配的嵌套属性
+      deepRemove(target[key], value);
+      if (Object.keys(target[key]).length === 0) {
+        delete target[key];
+      }
+    } else if (isSubset(target[key], value)) {
+      // 只有当值完全匹配时才删除
+      delete target[key];
+    }
+  });
+};
+
+const isSubset = (target: any, source: any): boolean => {
+  if (isPlainObject(source)) {
+    if (!isPlainObject(target)) return false;
+    return Object.entries(source).every(([key, value]) =>
+      isSubset(target[key], value),
+    );
+  }
+
+  if (Array.isArray(source)) {
+    if (!Array.isArray(target) || target.length !== source.length) return false;
+    return source.every((item, index) => isSubset(target[index], item));
+  }
+
+  return target === source;
+};
+
+// 深拷贝函数
+const deepClone = <T>(obj: T): T => {
+  if (obj === null || typeof obj !== "object") return obj;
+  if (obj instanceof Date) return new Date(obj.getTime()) as T;
+  if (obj instanceof Array) return obj.map((item) => deepClone(item)) as T;
+  if (obj instanceof Object) {
+    const clonedObj = {} as T;
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        clonedObj[key] = deepClone(obj[key]);
+      }
+    }
+    return clonedObj;
+  }
+  return obj;
+};
+
+export interface UpdateCommonConfigResult {
+  updatedConfig: string;
+  error?: string;
+}
 
 // 验证JSON配置格式
 export const validateJsonConfig = (
@@ -19,6 +100,69 @@ export const validateJsonConfig = (
     return "";
   } catch {
     return `${fieldName}JSON格式错误，请检查语法`;
+  }
+};
+
+// 将通用配置片段写入/移除 settingsConfig
+export const updateCommonConfigSnippet = (
+  jsonString: string,
+  snippetString: string,
+  enabled: boolean,
+): UpdateCommonConfigResult => {
+  let config: Record<string, any>;
+  try {
+    config = jsonString ? JSON.parse(jsonString) : {};
+  } catch (err) {
+    return {
+      updatedConfig: jsonString,
+      error: "配置 JSON 解析失败，无法写入通用配置",
+    };
+  }
+
+  if (!snippetString.trim()) {
+    return {
+      updatedConfig: JSON.stringify(config, null, 2),
+    };
+  }
+
+  // 使用统一的验证函数
+  const snippetError = validateJsonConfig(snippetString, "通用配置片段");
+  if (snippetError) {
+    return {
+      updatedConfig: JSON.stringify(config, null, 2),
+      error: snippetError,
+    };
+  }
+
+  const snippet = JSON.parse(snippetString) as Record<string, any>;
+
+  if (enabled) {
+    const merged = deepMerge(deepClone(config), snippet);
+    return {
+      updatedConfig: JSON.stringify(merged, null, 2),
+    };
+  }
+
+  const cloned = deepClone(config);
+  deepRemove(cloned, snippet);
+  return {
+    updatedConfig: JSON.stringify(cloned, null, 2),
+  };
+};
+
+// 检查当前配置是否已包含通用配置片段
+export const hasCommonConfigSnippet = (
+  jsonString: string,
+  snippetString: string,
+): boolean => {
+  try {
+    if (!snippetString.trim()) return false;
+    const config = jsonString ? JSON.parse(jsonString) : {};
+    const snippet = JSON.parse(snippetString);
+    if (!isPlainObject(snippet)) return false;
+    return isSubset(config, snippet);
+  } catch (err) {
+    return false;
   }
 };
 
@@ -197,7 +341,7 @@ export const setApiKeyInConfig = (
       return JSON.stringify(config, null, 2);
     }
 
-    // Claude API Key (优先写入已存在的字段；若两者均不存在且允许创建，则使用 apiKeyField 指定的字段名)
+    // Claude API Key (优先写入已存在的字段；若两者均不存在且允许创建，则使用 apiKeyField 或默认 AUTH_TOKEN 字段)
     if ("ANTHROPIC_AUTH_TOKEN" in env) {
       env.ANTHROPIC_AUTH_TOKEN = apiKey;
     } else if ("ANTHROPIC_API_KEY" in env) {
@@ -210,6 +354,61 @@ export const setApiKeyInConfig = (
     return JSON.stringify(config, null, 2);
   } catch (err) {
     return jsonString;
+  }
+};
+
+// ========== TOML Config Utilities ==========
+
+export interface UpdateTomlCommonConfigResult {
+  updatedConfig: string;
+  error?: string;
+}
+
+// Write/remove common config snippet to/from TOML config (structural merge)
+export const updateTomlCommonConfigSnippet = (
+  tomlString: string,
+  snippetString: string,
+  enabled: boolean,
+): UpdateTomlCommonConfigResult => {
+  if (!snippetString.trim()) {
+    return { updatedConfig: tomlString };
+  }
+
+  try {
+    const config = parseToml(normalizeTomlText(tomlString || ""));
+    const snippet = parseToml(normalizeTomlText(snippetString));
+
+    if (enabled) {
+      const merged = deepMerge(
+        deepClone(config) as Record<string, any>,
+        deepClone(snippet) as Record<string, any>,
+      );
+      return { updatedConfig: stringifyToml(merged) };
+    } else {
+      const result = deepClone(config) as Record<string, any>;
+      deepRemove(result, snippet as Record<string, any>);
+      return { updatedConfig: stringifyToml(result) };
+    }
+  } catch (e) {
+    return { updatedConfig: tomlString, error: String(e) };
+  }
+};
+
+// Check if TOML config already contains the common config snippet (structural subset check)
+export const hasTomlCommonConfigSnippet = (
+  tomlString: string,
+  snippetString: string,
+): boolean => {
+  if (!snippetString.trim()) return false;
+
+  try {
+    const config = parseToml(normalizeTomlText(tomlString || ""));
+    const snippet = parseToml(normalizeTomlText(snippetString));
+    return isSubset(config, snippet);
+  } catch {
+    // Fallback to text-based matching if TOML parsing fails
+    const norm = (s: string) => s.replace(/\s+/g, " ").trim();
+    return norm(tomlString).includes(norm(snippetString));
   }
 };
 
@@ -252,11 +451,22 @@ export const setCodexBaseUrl = (
   baseUrl: string,
 ): string => {
   const trimmed = baseUrl.trim();
-  if (!trimmed) {
-    return configText;
-  }
   // 归一化原文本中的引号（既能匹配，也能输出稳定格式）
   const normalizedText = normalizeQuotes(configText);
+
+  // 允许清空：当 baseUrl 为空时，移除 base_url 行
+  if (!trimmed) {
+    if (!normalizedText) return normalizedText;
+    const next = normalizedText
+      .split("\n")
+      .filter((line) => !/^\s*base_url\s*=/.test(line))
+      .join("\n")
+      // 避免移除后留下过多空行
+      .replace(/\n{3,}/g, "\n\n")
+      // 避免开头出现空行
+      .replace(/^\n+/, "");
+    return next;
+  }
 
   const normalizedUrl = trimmed.replace(/\s+/g, "");
   const replacementLine = `base_url = "${normalizedUrl}"`;
@@ -299,12 +509,20 @@ export const setCodexModelName = (
   modelName: string,
 ): string => {
   const trimmed = modelName.trim();
-  if (!trimmed) {
-    return configText;
-  }
-
   // 归一化原文本中的引号（既能匹配，也能输出稳定格式）
   const normalizedText = normalizeQuotes(configText);
+
+  // 允许清空：当 modelName 为空时，移除 model 行
+  if (!trimmed) {
+    if (!normalizedText) return normalizedText;
+    const next = normalizedText
+      .split("\n")
+      .filter((line) => !/^\s*model\s*=/.test(line))
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/^\n+/, "");
+    return next;
+  }
 
   const replacementLine = `model = "${trimmed}"`;
   const pattern = /^model\s*=\s*["']([^"']+)["']/m;

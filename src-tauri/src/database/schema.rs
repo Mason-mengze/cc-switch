@@ -241,6 +241,27 @@ impl Database {
         )
         .map_err(|e| AppError::Database(e.to_string()))?;
 
+        // 17. Usage Daily Rollups 表 (日聚合统计)
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS usage_daily_rollups (
+                date TEXT NOT NULL,
+                app_type TEXT NOT NULL,
+                provider_id TEXT NOT NULL,
+                model TEXT NOT NULL,
+                request_count INTEGER NOT NULL DEFAULT 0,
+                success_count INTEGER NOT NULL DEFAULT 0,
+                input_tokens INTEGER NOT NULL DEFAULT 0,
+                output_tokens INTEGER NOT NULL DEFAULT 0,
+                cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+                cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+                total_cost_usd TEXT NOT NULL DEFAULT '0',
+                avg_latency_ms INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (date, app_type, provider_id, model)
+            )",
+            [],
+        )
+        .map_err(|e| AppError::Database(e.to_string()))?;
+
         // 尝试添加 live_takeover_active 列到 proxy_config 表
         let _ = conn.execute(
             "ALTER TABLE proxy_config ADD COLUMN live_takeover_active INTEGER NOT NULL DEFAULT 0",
@@ -361,9 +382,7 @@ impl Database {
                         Self::set_user_version(conn, 5)?;
                     }
                     5 => {
-                        log::info!(
-                            "迁移数据库从 v5 到 v6（统一 Copilot 模板类型为 github_copilot）"
-                        );
+                        log::info!("迁移数据库从 v5 到 v6（统一 Copilot 模板类型 + 使用量聚合表）");
                         Self::migrate_v5_to_v6(conn)?;
                         Self::set_user_version(conn, 6)?;
                     }
@@ -921,9 +940,9 @@ impl Database {
         Ok(())
     }
 
-    /// v5 -> v6: 统一 Copilot 模板类型为 github_copilot
+    /// v5 -> v6 迁移：统一 Copilot 模板类型为 github_copilot + 添加使用量日聚合表
     fn migrate_v5_to_v6(conn: &Connection) -> Result<(), AppError> {
-        // 查询所有 providers
+        // 1. 统一 Copilot 模板类型
         let mut stmt = conn
             .prepare("SELECT id, app_type, meta FROM providers")
             .map_err(|e| AppError::Database(e.to_string()))?;
@@ -942,11 +961,9 @@ impl Database {
         for row in rows {
             let (id, app_type, meta_str) = row.map_err(|e| AppError::Database(e.to_string()))?;
 
-            // 解析 meta JSON
             if let Ok(mut meta) = serde_json::from_str::<serde_json::Value>(&meta_str) {
                 let mut updated = false;
 
-                // 检查 usage_script.template_type
                 if let Some(usage_script) = meta.get_mut("usage_script") {
                     if let Some(template_type) = usage_script.get_mut("template_type") {
                         if template_type == "copilot" {
@@ -965,7 +982,6 @@ impl Database {
             }
         }
 
-        // 批量更新
         for (id, app_type, new_meta) in updates {
             conn.execute(
                 "UPDATE providers SET meta = ?1 WHERE id = ?2 AND app_type = ?3",
@@ -974,7 +990,28 @@ impl Database {
             .map_err(|e| AppError::Database(e.to_string()))?;
         }
 
-        log::info!("v5 -> v6 迁移完成：已将 copilot 模板类型统一为 github_copilot");
+        // 2. 添加使用量日聚合表
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS usage_daily_rollups (
+                date TEXT NOT NULL,
+                app_type TEXT NOT NULL,
+                provider_id TEXT NOT NULL,
+                model TEXT NOT NULL,
+                request_count INTEGER NOT NULL DEFAULT 0,
+                success_count INTEGER NOT NULL DEFAULT 0,
+                input_tokens INTEGER NOT NULL DEFAULT 0,
+                output_tokens INTEGER NOT NULL DEFAULT 0,
+                cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+                cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+                total_cost_usd TEXT NOT NULL DEFAULT '0',
+                avg_latency_ms INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (date, app_type, provider_id, model)
+            )",
+            [],
+        )
+        .map_err(|e| AppError::Database(format!("创建 usage_daily_rollups 表失败: {e}")))?;
+
+        log::info!("v5 -> v6 迁移完成：已将 copilot 模板类型统一为 github_copilot，已添加使用量日聚合表");
         Ok(())
     }
 
@@ -1251,6 +1288,15 @@ impl Database {
                 "0.3",
                 "2.5",
                 "0.03",
+                "0",
+            ),
+            // StepFun 系列
+            (
+                "step-3.5-flash",
+                "Step 3.5 Flash",
+                "0.10",
+                "0.30",
+                "0.02",
                 "0",
             ),
             // ====== 国产模型 (CNY/1M tokens) ======
