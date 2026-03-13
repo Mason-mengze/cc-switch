@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import type { OpenClawModel } from "@/types";
+import type { OpenClawModel, OpenClawProviderConfig } from "@/types";
 import type { AppId } from "@/lib/api";
 import { useProvidersQuery } from "@/lib/query/queries";
 import { OPENCLAW_DEFAULT_CONFIG } from "../helpers/opencodeFormUtils";
@@ -31,13 +31,7 @@ export interface OpenclawFormState {
   handleOpenclawApiChange: (api: string) => void;
   handleOpenclawModelsChange: (models: OpenClawModel[]) => void;
   handleOpenclawUserAgentChange: (enabled: boolean) => void;
-  resetOpenclawState: (config?: {
-    baseUrl?: string;
-    apiKey?: string;
-    api?: string;
-    models?: OpenClawModel[];
-    headers?: Record<string, string>;
-  }) => void;
+  resetOpenclawState: (config?: OpenClawProviderConfig) => void;
 }
 
 function parseOpenclawField<T>(
@@ -177,24 +171,15 @@ export function useOpenclawFormState({
     [updateOpenclawConfig],
   );
 
-  const resetOpenclawState = useCallback(
-    (config?: {
-      baseUrl?: string;
-      apiKey?: string;
-      api?: string;
-      models?: OpenClawModel[];
-      headers?: Record<string, string>;
-    }) => {
-      setOpenclawProviderKey("");
-      setOpenclawBaseUrl(config?.baseUrl || "");
-      setOpenclawApiKey(config?.apiKey || "");
-      setOpenclawApi(config?.api || "openai-completions");
-      setOpenclawModels(config?.models || []);
-      const ua = config?.headers ? "User-Agent" in config.headers : false;
-      setOpenclawUserAgent(ua);
-    },
-    [],
-  );
+  const resetOpenclawState = useCallback((config?: OpenClawProviderConfig) => {
+    setOpenclawProviderKey("");
+    setOpenclawBaseUrl(config?.baseUrl || "");
+    setOpenclawApiKey(config?.apiKey || "");
+    setOpenclawApi(config?.api || "openai-completions");
+    setOpenclawModels(config?.models || []);
+    const ua = config?.headers ? "User-Agent" in config.headers : false;
+    setOpenclawUserAgent(ua);
+  }, []);
 
   return {
     openclawProviderKey,

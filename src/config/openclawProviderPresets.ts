@@ -19,6 +19,7 @@ export interface OpenClawSuggestedDefaults {
 
 export interface OpenClawProviderPreset {
   name: string;
+  nameKey?: string; // i18n key for localized display name
   websiteUrl: string;
   apiKeyUrl?: string;
   /** OpenClaw settings_config structure */
@@ -458,6 +459,7 @@ export const openclawProviderPresets: OpenClawProviderPreset[] = [
       baseUrl: "https://api.longcat.chat/v1",
       apiKey: "",
       api: "openai-completions",
+      authHeader: true,
       models: [
         {
           id: "LongCat-Flash-Chat",
@@ -758,7 +760,7 @@ export const openclawProviderPresets: OpenClawProviderPreset[] = [
   {
     name: "SiliconFlow",
     websiteUrl: "https://siliconflow.cn",
-    apiKeyUrl: "https://cloud.siliconflow.cn/me/account/ak",
+    apiKeyUrl: "https://cloud.siliconflow.cn/i/drGuwc9k",
     settingsConfig: {
       baseUrl: "https://api.siliconflow.cn/v1",
       apiKey: "",
@@ -794,7 +796,7 @@ export const openclawProviderPresets: OpenClawProviderPreset[] = [
   {
     name: "SiliconFlow en",
     websiteUrl: "https://siliconflow.com",
-    apiKeyUrl: "https://cloud.siliconflow.com/account/ak",
+    apiKeyUrl: "https://cloud.siliconflow.cn/i/drGuwc9k",
     settingsConfig: {
       baseUrl: "https://api.siliconflow.com/v1",
       apiKey: "",
@@ -1263,7 +1265,8 @@ export const openclawProviderPresets: OpenClawProviderPreset[] = [
     },
   },
   {
-    name: "Ucloud",
+    name: "Compshare",
+    nameKey: "providerForm.presets.ucloud",
     websiteUrl: "https://www.compshare.cn",
     apiKeyUrl:
       "https://www.compshare.cn/coding-plan?ytag=GPU_YY_YX_git_cc-switch",
@@ -1294,17 +1297,17 @@ export const openclawProviderPresets: OpenClawProviderPreset[] = [
     },
     suggestedDefaults: {
       model: {
-        primary: "ucloud/claude-opus-4-6",
+        primary: "compshare/claude-opus-4-6",
       },
       modelCatalog: {
-        "ucloud/claude-opus-4-6": { alias: "Opus" },
+        "compshare/claude-opus-4-6": { alias: "Opus" },
       },
     },
   },
   {
     name: "Micu",
     websiteUrl: "https://www.openclaudecode.cn",
-    apiKeyUrl: "https://www.openclaudecode.cn",
+    apiKeyUrl: "https://www.openclaudecode.cn/register?aff=aOYQ",
     settingsConfig: {
       baseUrl: "https://www.openclaudecode.cn",
       apiKey: "",
@@ -1336,6 +1339,44 @@ export const openclawProviderPresets: OpenClawProviderPreset[] = [
       },
       modelCatalog: {
         "micu/claude-opus-4-6": { alias: "Opus" },
+      },
+    },
+  },
+  {
+    name: "CTok.ai",
+    websiteUrl: "https://ctok.ai",
+    apiKeyUrl: "https://ctok.ai",
+    settingsConfig: {
+      baseUrl: "https://api.ctok.ai",
+      apiKey: "",
+      api: "anthropic-messages",
+      models: [
+        {
+          id: "claude-opus-4-6",
+          name: "Claude Opus 4.6",
+          contextWindow: 200000,
+          cost: { input: 5, output: 25 },
+        },
+      ],
+    },
+    category: "third_party",
+    isPartner: true,
+    partnerPromotionKey: "ctok",
+    icon: "ctok",
+    iconColor: "#000000",
+    templateValues: {
+      apiKey: {
+        label: "API Key",
+        placeholder: "",
+        editorValue: "",
+      },
+    },
+    suggestedDefaults: {
+      model: {
+        primary: "ctok/claude-opus-4-6",
+      },
+      modelCatalog: {
+        "ctok/claude-opus-4-6": { alias: "Opus" },
       },
     },
   },

@@ -24,6 +24,7 @@ export interface PresetTheme {
 
 export interface ProviderPreset {
   name: string;
+  nameKey?: string; // i18n key for localized display name
   websiteUrl: string;
   // 新增：第三方/聚合等可单独配置获取 API Key 的链接
   apiKeyUrl?: string;
@@ -375,7 +376,7 @@ export const providerPresets: ProviderPreset[] = [
   {
     name: "SiliconFlow",
     websiteUrl: "https://siliconflow.cn",
-    apiKeyUrl: "https://cloud.siliconflow.cn/me/account/ak",
+    apiKeyUrl: "https://cloud.siliconflow.cn/i/drGuwc9k",
     settingsConfig: {
       env: {
         ANTHROPIC_BASE_URL: "https://api.siliconflow.cn",
@@ -395,7 +396,7 @@ export const providerPresets: ProviderPreset[] = [
   {
     name: "SiliconFlow en",
     websiteUrl: "https://siliconflow.com",
-    apiKeyUrl: "https://cloud.siliconflow.com/account/ak",
+    apiKeyUrl: "https://cloud.siliconflow.cn/i/drGuwc9k",
     settingsConfig: {
       env: {
         ANTHROPIC_BASE_URL: "https://api.siliconflow.com",
@@ -580,7 +581,8 @@ export const providerPresets: ProviderPreset[] = [
     iconColor: "#000000",
   },
   {
-    name: "Ucloud",
+    name: "Compshare",
+    nameKey: "providerForm.presets.ucloud",
     websiteUrl: "https://www.compshare.cn",
     apiKeyUrl:
       "https://www.compshare.cn/coding-plan?ytag=GPU_YY_YX_git_cc-switch",
@@ -600,7 +602,7 @@ export const providerPresets: ProviderPreset[] = [
   {
     name: "Micu",
     websiteUrl: "https://www.openclaudecode.cn",
-    apiKeyUrl: "https://www.openclaudecode.cn",
+    apiKeyUrl: "https://www.openclaudecode.cn/register?aff=aOYQ",
     settingsConfig: {
       env: {
         ANTHROPIC_BASE_URL: "https://www.openclaudecode.cn",
@@ -616,19 +618,35 @@ export const providerPresets: ProviderPreset[] = [
   },
   {
     name: "X-Code API",
-    websiteUrl: "https://www.x-code.cn",
-    apiKeyUrl: "https://www.x-code.cn",
+    websiteUrl: "https://x-code.cc",
+    apiKeyUrl: "https://x-code.cc",
     settingsConfig: {
       env: {
-        ANTHROPIC_BASE_URL: "https://www.x-code.cn",
+        ANTHROPIC_BASE_URL: "https://x-code.cc",
         ANTHROPIC_AUTH_TOKEN: "",
       },
     },
-    endpointCandidates: ["https://www.x-code.cn"],
+    endpointCandidates: ["https://x-code.cc"],
     category: "third_party",
     isPartner: true, // 合作伙伴
     partnerPromotionKey: "x-code", // 促销信息 i18n key
     icon: "x-code",
+    iconColor: "#000000",
+  },
+  {
+    name: "CTok.ai",
+    websiteUrl: "https://ctok.ai",
+    apiKeyUrl: "https://ctok.ai",
+    settingsConfig: {
+      env: {
+        ANTHROPIC_BASE_URL: "https://api.ctok.ai",
+        ANTHROPIC_AUTH_TOKEN: "",
+      },
+    },
+    category: "third_party",
+    isPartner: true, // 合作伙伴
+    partnerPromotionKey: "ctok", // 促销信息 i18n key
+    icon: "ctok",
     iconColor: "#000000",
   },
   {

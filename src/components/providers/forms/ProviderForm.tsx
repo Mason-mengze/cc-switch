@@ -456,6 +456,7 @@ export function ProviderForm({
     handleCommonConfigSnippetChange: handleCodexCommonConfigSnippetChange,
     isExtracting: isCodexExtracting,
     handleExtract: handleCodexExtract,
+    clearCommonConfigError: clearCodexCommonConfigError,
   } = useCodexCommonConfig({
     codexConfig,
     onConfigChange: handleCodexConfigChange,
@@ -539,6 +540,7 @@ export function ProviderForm({
     handleCommonConfigSnippetChange: handleGeminiCommonConfigSnippetChange,
     isExtracting: isGeminiExtracting,
     handleExtract: handleGeminiExtract,
+    clearCommonConfigError: clearGeminiCommonConfigError,
   } = useGeminiCommonConfig({
     envValue: geminiEnv,
     onEnvChange: handleGeminiEnvChange,
@@ -1071,7 +1073,7 @@ export function ProviderForm({
       resetCodexConfig(auth, config);
 
       form.reset({
-        name: preset.name,
+        name: preset.nameKey ? t(preset.nameKey) : preset.name,
         websiteUrl: preset.websiteUrl ?? "",
         settingsConfig: JSON.stringify({ auth, config }, null, 2),
         icon: preset.icon ?? "",
@@ -1088,7 +1090,7 @@ export function ProviderForm({
       resetGeminiConfig(env, config);
 
       form.reset({
-        name: preset.name,
+        name: preset.nameKey ? t(preset.nameKey) : preset.name,
         websiteUrl: preset.websiteUrl ?? "",
         settingsConfig: JSON.stringify(preset.settingsConfig, null, 2),
         icon: preset.icon ?? "",
@@ -1116,7 +1118,7 @@ export function ProviderForm({
       opencodeForm.resetOpencodeState(config);
 
       form.reset({
-        name: preset.name,
+        name: preset.nameKey ? t(preset.nameKey) : preset.name,
         websiteUrl: preset.websiteUrl ?? "",
         settingsConfig: JSON.stringify(config, null, 2),
         icon: preset.icon ?? "",
@@ -1143,7 +1145,7 @@ export function ProviderForm({
 
       // Update form fields
       form.reset({
-        name: preset.name,
+        name: preset.nameKey ? t(preset.nameKey) : preset.name,
         websiteUrl: preset.websiteUrl ?? "",
         settingsConfig: JSON.stringify(config, null, 2),
         icon: preset.icon ?? "",
@@ -1167,7 +1169,7 @@ export function ProviderForm({
     setLocalApiKeyField(preset.apiKeyField ?? "ANTHROPIC_AUTH_TOKEN");
 
     form.reset({
-      name: preset.name,
+      name: preset.nameKey ? t(preset.nameKey) : preset.name,
       websiteUrl: preset.websiteUrl ?? "",
       settingsConfig: JSON.stringify(config, null, 2),
       icon: preset.icon ?? "",
@@ -1519,6 +1521,7 @@ export function ProviderForm({
               onCommonConfigToggle={handleCodexCommonConfigToggle}
               commonConfigSnippet={codexCommonConfigSnippet}
               onCommonConfigSnippetChange={handleCodexCommonConfigSnippetChange}
+              onCommonConfigErrorClear={clearCodexCommonConfigError}
               commonConfigError={codexCommonConfigError}
               authError={codexAuthError}
               configError={codexConfigError}
@@ -1540,6 +1543,7 @@ export function ProviderForm({
               onCommonConfigSnippetChange={
                 handleGeminiCommonConfigSnippetChange
               }
+              onCommonConfigErrorClear={clearGeminiCommonConfigError}
               commonConfigError={geminiCommonConfigError}
               envError={envError}
               configError={geminiConfigError}
