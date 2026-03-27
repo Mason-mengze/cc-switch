@@ -78,19 +78,36 @@ impl ProviderRouter {
             }
         } else {
             // 故障转移关闭：仅使用当前供应商，跳过熔断器检查
-            let current_id = AppType::from_str(app_type)
-                .ok()
-                .and_then(|app_enum| {
-                    crate::settings::get_effective_current_provider(&self.db, &app_enum)
+            if let Ok(app_enum) = AppType::from_str(app_type) {
+                if app_enum.is_additive_mode() {
+                    let providers = self.db.get_all_providers(app_type)?;
+                    if matches!(app_enum, AppType::VscodeCopilot) {
+                        let enabled_ids = crate::vscode_copilot_config::read_enabled_provider_ids()
+                            .ok()
+                            .flatten()
+                            .unwrap_or_else(|| providers.keys().cloned().collect());
+                        total_providers = enabled_ids.len();
+                        for provider_id in enabled_ids {
+                            if let Some(provider) = providers.get(&provider_id).cloned() {
+                                result.push(provider);
+                            }
+                        }
+                    } else {
+                        total_providers = providers.len();
+                        result.extend(providers.into_values());
+                    }
+                } else {
+                    let current_id = crate::settings::get_effective_current_provider(&self.db, &app_enum)
                         .ok()
                         .flatten()
-                })
-                .or_else(|| self.db.get_current_provider(app_type).ok().flatten());
+                        .or_else(|| self.db.get_current_provider(app_type).ok().flatten());
 
-            if let Some(current_id) = current_id {
-                if let Some(current) = self.db.get_provider_by_id(&current_id, app_type)? {
-                    total_providers = 1;
-                    result.push(current);
+                    if let Some(current_id) = current_id {
+                        if let Some(current) = self.db.get_provider_by_id(&current_id, app_type)? {
+                            total_providers = 1;
+                            result.push(current);
+                        }
+                    }
                 }
             }
         }
@@ -338,6 +355,56 @@ mod tests {
 
         assert_eq!(providers.len(), 1);
         assert_eq!(providers[0].id, "a");
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_failover_disabled_additive_mode_returns_all_providers() {
+        let _home = TempHome::new();
+        let db = Arc::new(Database::memory().unwrap());
+        let router = ProviderRouter::new(db.clone());
+
+        db.save_provider(
+            "vscode-copilot",
+            &Provider {
+                id: "a".to_string(),
+                name: "Provider A".to_string(),
+                settings_config: json!({ "id": "model-a", "base_url": "https://a.example", "family": "custom", "name": "Model A" }),
+                website_url: None,
+                category: None,
+                created_at: None,
+                sort_index: None,
+                notes: None,
+                meta: None,
+                icon: None,
+                icon_color: None,
+                in_failover_queue: false,
+            },
+        )
+        .unwrap();
+        db.save_provider(
+            "vscode-copilot",
+            &Provider {
+                id: "b".to_string(),
+                name: "Provider B".to_string(),
+                settings_config: json!({ "id": "model-b", "base_url": "https://b.example", "family": "custom", "name": "Model B" }),
+                website_url: None,
+                category: None,
+                created_at: None,
+                sort_index: None,
+                notes: None,
+                meta: None,
+                icon: None,
+                icon_color: None,
+                in_failover_queue: false,
+            },
+        )
+        .unwrap();
+
+        let providers = router.select_providers("vscode-copilot").await.unwrap();
+        assert_eq!(providers.len(), 2);
+        assert_eq!(providers[0].id, "a");
+        assert_eq!(providers[1].id, "b");
     }
 
     #[tokio::test]

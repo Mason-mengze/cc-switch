@@ -598,7 +598,23 @@
     "codex": "Codex",
     "gemini": "Gemini",
     "opencode": "OpenCode",
-    "openclaw": "OpenClaw"
+    "openclaw": "OpenClaw",
+    "vscode-copilot": "VSCode Copilot"
+  },
+  "vscodeCopilot": {
+    "modelId": "模型 ID",
+    "displayName": "显示名称",
+    "family": "模型家族",
+    "version": "版本号",
+    "maxInputTokens": "最大输入 Tokens",
+    "maxOutputTokens": "最大输出 Tokens",
+    "tooltip": "提示文案",
+    "apiBaseUrl": "API Base URL",
+    "imageInput": "支持图片输入",
+    "imageInputHint": "开启后，扩展会向 VS Code 声明该模型支持图片输入。",
+    "toolCalling": "支持工具调用",
+    "toolCallingHint": "关闭后，扩展会把该模型声明为不支持工具调用。",
+    "requiredFields": "请完整填写模型 ID、显示名称和模型家族"
   },
   "sessionManager": {
     "title": "会话管理",
@@ -1955,6 +1971,7 @@
     "claudeModel": "Claude 模型",
     "codexModel": "Codex 模型",
     "geminiModel": "Gemini 模型",
+    "vscodeCopilotModel": "VSCode Copilot 模型",
     "checkParams": "检查参数",
     "timeout": "超时时间（秒）",
     "maxRetries": "最大重试次数",

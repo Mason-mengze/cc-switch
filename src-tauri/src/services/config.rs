@@ -130,6 +130,9 @@ impl ConfigService {
                 // OpenClaw uses additive mode, no live sync needed
                 // OpenClaw providers are managed directly in the config file
             }
+            AppType::VscodeCopilot => {
+                // VSCode Copilot is provider-only and does not use live config files
+            }
         }
 
         Ok(())

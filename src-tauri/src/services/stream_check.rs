@@ -37,6 +37,8 @@ pub struct StreamCheckConfig {
     pub codex_model: String,
     /// Gemini 测试模型
     pub gemini_model: String,
+    /// VSCode Copilot 测试模型
+    pub vscode_copilot_model: String,
     /// 检查提示词
     #[serde(default = "default_test_prompt")]
     pub test_prompt: String,
@@ -55,6 +57,7 @@ impl Default for StreamCheckConfig {
             claude_model: "claude-haiku-4-5-20251001".to_string(),
             codex_model: "gpt-5.1-codex@low".to_string(),
             gemini_model: "gemini-3-pro-preview".to_string(),
+            vscode_copilot_model: "gpt-4o".to_string(),
             test_prompt: default_test_prompt(),
         }
     }
@@ -168,6 +171,10 @@ impl StreamCheckService {
                     .test_model
                     .clone()
                     .unwrap_or_else(|| global_config.gemini_model.clone()),
+                vscode_copilot_model: tc
+                    .test_model
+                    .clone()
+                    .unwrap_or_else(|| global_config.vscode_copilot_model.clone()),
                 test_prompt: tc
                     .test_prompt
                     .clone()
@@ -253,6 +260,17 @@ impl StreamCheckService {
                     "OpenClaw 暂不支持健康检查",
                     "OpenClaw does not support health check yet",
                 ));
+            }
+            AppType::VscodeCopilot => {
+                Self::check_vscode_copilot_stream(
+                    &client,
+                    &base_url,
+                    &auth,
+                    &model_to_test,
+                    test_prompt,
+                    request_timeout,
+                )
+                .await
             }
         };
 
@@ -529,6 +547,75 @@ impl StreamCheckService {
         ))
     }
 
+    /// VSCode Copilot 流式检查
+    ///
+    /// 使用 OpenAI Chat Completions 兼容格式；当认证策略为 GitHub Copilot 时，
+    /// 追加 VS Code Copilot 所需的 editor 头。
+    async fn check_vscode_copilot_stream(
+        client: &Client,
+        base_url: &str,
+        auth: &AuthInfo,
+        model: &str,
+        test_prompt: &str,
+        timeout: std::time::Duration,
+    ) -> Result<(u16, String), AppError> {
+        let base = base_url.trim_end_matches('/');
+        let is_github_copilot = auth.strategy == AuthStrategy::GitHubCopilot;
+
+        let url = if is_github_copilot {
+            format!("{base}/chat/completions")
+        } else if base.ends_with("/v1") {
+            format!("{base}/chat/completions")
+        } else {
+            format!("{base}/v1/chat/completions")
+        };
+
+        let body = json!({
+            "model": model,
+            "messages": [{ "role": "user", "content": test_prompt }],
+            "max_tokens": 1,
+            "stream": true
+        });
+
+        let mut request_builder = client
+            .post(&url)
+            .header("authorization", format!("Bearer {}", auth.api_key))
+            .header("content-type", "application/json")
+            .header("accept", "text/event-stream")
+            .header("accept-encoding", "identity");
+
+        if is_github_copilot {
+            request_builder = request_builder
+                .header("editor-version", "vscode/1.85.0")
+                .header("editor-plugin-version", "copilot/1.150.0")
+                .header("copilot-integration-id", "vscode-chat");
+        }
+
+        let response = request_builder
+            .timeout(timeout)
+            .json(&body)
+            .send()
+            .await
+            .map_err(Self::map_request_error)?;
+
+        let status = response.status().as_u16();
+
+        if !response.status().is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(AppError::Message(format!("HTTP {status}: {error_text}")));
+        }
+
+        let mut stream = response.bytes_stream();
+        if let Some(chunk) = stream.next().await {
+            match chunk {
+                Ok(_) => Ok((status, model.to_string())),
+                Err(e) => Err(AppError::Message(format!("Stream read failed: {e}"))),
+            }
+        } else {
+            Err(AppError::Message("No response data received".to_string()))
+        }
+    }
+
     /// Gemini 流式检查
     ///
     /// 使用 Gemini 原生 API 格式 (streamGenerateContent)
@@ -645,6 +732,14 @@ impl StreamCheckService {
                 // OpenClaw uses models array in settings_config
                 // Try to extract first model from the models array
                 Self::extract_openclaw_model(provider).unwrap_or_else(|| "gpt-4o".to_string())
+            }
+            AppType::VscodeCopilot => {
+                provider
+                    .settings_config
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(&config.vscode_copilot_model)
+                    .to_string()
             }
         }
     }

@@ -47,6 +47,7 @@ export interface ProxyTakeoverStatus {
   gemini: boolean;
   opencode: boolean;
   openclaw: boolean;
+  "vscode-copilot": boolean;
 }
 
 export interface ProviderHealth {

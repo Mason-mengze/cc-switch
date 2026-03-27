@@ -37,8 +37,13 @@ import {
   type OpenClawProviderPreset,
   type OpenClawSuggestedDefaults,
 } from "@/config/openclawProviderPresets";
+import {
+  vscodeCopilotProviderPresets,
+  type VscodeCopilotProviderPreset,
+} from "@/config/vscodeCopilotProviderPresets";
 import { OpenCodeFormFields } from "./OpenCodeFormFields";
 import { OpenClawFormFields } from "./OpenClawFormFields";
+import { VscodeCopilotFormFields } from "./VscodeCopilotFormFields";
 import type { UniversalProviderPreset } from "@/config/universalProviderPresets";
 import {
   applyTemplateValues,
@@ -99,7 +104,8 @@ type PresetEntry = {
     | CodexProviderPreset
     | GeminiProviderPreset
     | OpenCodeProviderPreset
-    | OpenClawProviderPreset;
+    | OpenClawProviderPreset
+    | VscodeCopilotProviderPreset;
 };
 
 interface ProviderFormProps {
@@ -214,7 +220,7 @@ export function ProviderForm({
     });
   }, [appId, initialData]);
 
-  const defaultValues: ProviderFormData = useMemo(
+const defaultValues: ProviderFormData = useMemo(
     () => ({
       name: initialData?.name ?? "",
       websiteUrl: initialData?.websiteUrl ?? "",
@@ -229,6 +235,26 @@ export function ProviderForm({
               ? OPENCODE_DEFAULT_CONFIG
               : appId === "openclaw"
                 ? OPENCLAW_DEFAULT_CONFIG
+                : appId === "vscode-copilot"
+                  ? JSON.stringify(
+                      {
+                        id: "",
+                        name: "",
+                        family: "custom",
+                        version: "1.0.0",
+                        maxInputTokens: 128000,
+                        maxOutputTokens: 8192,
+                        tooltip: "",
+                        capabilities: {
+                          imageInput: false,
+                          toolCalling: true,
+                        },
+                        base_url: "",
+                        api_key: "",
+                      },
+                      null,
+                      2,
+                    )
                 : CLAUDE_DEFAULT_CONFIG,
       icon: initialData?.icon ?? "",
       iconColor: initialData?.iconColor ?? "",
@@ -416,6 +442,11 @@ export function ProviderForm({
     } else if (appId === "openclaw") {
       return openclawProviderPresets.map<PresetEntry>((preset, index) => ({
         id: `openclaw-${index}`,
+        preset,
+      }));
+    } else if (appId === "vscode-copilot") {
+      return vscodeCopilotProviderPresets.map<PresetEntry>((preset, index) => ({
+        id: `vscode-copilot-${index}`,
         preset,
       }));
     }
@@ -737,6 +768,34 @@ export function ProviderForm({
           );
           return;
         }
+      } else if (appId === "vscode-copilot") {
+        try {
+          const parsed = JSON.parse(values.settingsConfig.trim()) as {
+            id?: string;
+            name?: string;
+            family?: string;
+            base_url?: string;
+          };
+          if (!parsed.id?.trim() || !parsed.name?.trim() || !parsed.family?.trim()) {
+            toast.error(
+              t("vscodeCopilot.requiredFields", {
+                defaultValue: "请完整填写模型 ID、显示名称和模型家族",
+              }),
+            );
+            return;
+          }
+          if (!parsed.base_url?.trim()) {
+            toast.error(
+              t("providerForm.endpointRequired", {
+                defaultValue: "非官方供应商请填写 API 端点",
+              }),
+            );
+            return;
+          }
+        } catch {
+          toast.error(t("jsonEditor.invalidJson", { defaultValue: "JSON格式错误" }));
+          return;
+        }
       }
     }
 
@@ -1032,6 +1091,19 @@ export function ProviderForm({
     formWebsiteUrl: form.watch("websiteUrl") || "",
   });
 
+  const {
+    shouldShowApiKeyLink: shouldShowVscodeCopilotApiKeyLink,
+    websiteUrl: vscodeCopilotWebsiteUrl,
+    isPartner: isVscodeCopilotPartner,
+    partnerPromotionKey: vscodeCopilotPartnerPromotionKey,
+  } = useApiKeyLink({
+    appId: "vscode-copilot",
+    category,
+    selectedPresetId,
+    presetEntries,
+    formWebsiteUrl: form.watch("websiteUrl") || "",
+  });
+
   // 使用端点测速候选 hook
   const speedTestEndpoints = useSpeedTestEndpoints({
     appId,
@@ -1161,6 +1233,18 @@ export function ProviderForm({
         name: preset.nameKey ? t(preset.nameKey) : preset.name,
         websiteUrl: preset.websiteUrl ?? "",
         settingsConfig: JSON.stringify(config, null, 2),
+        icon: preset.icon ?? "",
+        iconColor: preset.iconColor ?? "",
+      });
+      return;
+    }
+
+    if (appId === "vscode-copilot") {
+      const preset = entry.preset as VscodeCopilotProviderPreset;
+      form.reset({
+        name: preset.nameKey ? t(preset.nameKey) : preset.name,
+        websiteUrl: preset.websiteUrl ?? "",
+        settingsConfig: JSON.stringify(preset.settingsConfig, null, 2),
         icon: preset.icon ?? "",
         iconColor: preset.iconColor ?? "",
       });
@@ -1522,6 +1606,20 @@ export function ProviderForm({
           />
         )}
 
+        {appId === "vscode-copilot" && (
+          <VscodeCopilotFormFields
+            config={form.getValues("settingsConfig")}
+            onConfigChange={(nextConfig) =>
+              form.setValue("settingsConfig", nextConfig)
+            }
+            category={category}
+            shouldShowApiKeyLink={shouldShowVscodeCopilotApiKeyLink}
+            websiteUrl={vscodeCopilotWebsiteUrl}
+            isPartner={isVscodeCopilotPartner}
+            partnerPromotionKey={vscodeCopilotPartnerPromotionKey}
+          />
+        )}
+
         {/* 配置编辑器：Codex、Claude、Gemini 分别使用不同的编辑器 */}
         {appId === "codex" ? (
           <>
@@ -1629,6 +1727,8 @@ export function ProviderForm({
               )}
             />
           </>
+        ) : appId === "vscode-copilot" ? (
+          settingsConfigErrorField
         ) : (
           <>
             <CommonConfigEditor

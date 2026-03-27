@@ -67,9 +67,13 @@ const McpFormModal: React.FC<McpFormModalProps> = ({
     gemini: boolean;
     opencode: boolean;
     openclaw: boolean;
+    "vscode-copilot": boolean;
   }>(() => {
     if (initialData?.apps) {
-      return { ...initialData.apps };
+      return {
+        ...initialData.apps,
+        "vscode-copilot": initialData.apps["vscode-copilot"] ?? false,
+      };
     }
     return {
       claude: defaultEnabledApps.includes("claude"),
@@ -77,6 +81,7 @@ const McpFormModal: React.FC<McpFormModalProps> = ({
       gemini: defaultEnabledApps.includes("gemini"),
       opencode: defaultEnabledApps.includes("opencode"),
       openclaw: defaultEnabledApps.includes("openclaw"),
+      "vscode-copilot": false,
     };
   });
 

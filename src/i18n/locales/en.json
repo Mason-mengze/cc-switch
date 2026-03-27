@@ -598,7 +598,23 @@
     "codex": "Codex",
     "gemini": "Gemini",
     "opencode": "OpenCode",
-    "openclaw": "OpenClaw"
+    "openclaw": "OpenClaw",
+    "vscode-copilot": "VSCode Copilot"
+  },
+  "vscodeCopilot": {
+    "modelId": "Model ID",
+    "displayName": "Display name",
+    "family": "Model family",
+    "version": "Version",
+    "maxInputTokens": "Max input tokens",
+    "maxOutputTokens": "Max output tokens",
+    "tooltip": "Tooltip",
+    "apiBaseUrl": "API Base URL",
+    "imageInput": "Image input support",
+    "imageInputHint": "When enabled, the extension declares image input support to VS Code.",
+    "toolCalling": "Tool calling support",
+    "toolCallingHint": "When disabled, the model is exposed as not supporting tool calling.",
+    "requiredFields": "Please fill in model ID, display name, and model family"
   },
   "sessionManager": {
     "title": "Session Manager",
@@ -1955,6 +1971,7 @@
     "claudeModel": "Claude Model",
     "codexModel": "Codex Model",
     "geminiModel": "Gemini Model",
+    "vscodeCopilotModel": "VSCode Copilot Model",
     "checkParams": "Check Parameters",
     "timeout": "Timeout (seconds)",
     "maxRetries": "Max Retries",

@@ -259,6 +259,7 @@ pub fn import_from_opencode(config: &mut MultiAppConfig) -> Result<usize, AppErr
                         codex: false,
                         gemini: false,
                         opencode: true,
+                        vscode_copilot: false,
                     },
                     description: None,
                     homepage: None,

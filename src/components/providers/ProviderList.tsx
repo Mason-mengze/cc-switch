@@ -100,6 +100,12 @@ export function ProviderList({
     enabled: appId === "opencode",
   });
 
+  const { data: vscodeCopilotLiveIds } = useQuery({
+    queryKey: ["vscodeCopilotLiveProviderIds"],
+    queryFn: () => providersApi.getVscodeCopilotLiveProviderIds(),
+    enabled: appId === "vscode-copilot",
+  });
+
   // OpenClaw: 查询 live 配置中的供应商 ID 列表，用于判断 isInConfig
   const { data: openclawLiveIds } = useOpenClawLiveProviderIds(
     appId === "openclaw",
@@ -114,9 +120,12 @@ export function ProviderList({
       if (appId === "openclaw") {
         return openclawLiveIds?.includes(providerId) ?? false;
       }
+      if (appId === "vscode-copilot") {
+        return vscodeCopilotLiveIds?.includes(providerId) ?? false;
+      }
       return true; // 其他应用始终返回 true
     },
-    [appId, opencodeLiveIds, openclawLiveIds],
+    [appId, opencodeLiveIds, openclawLiveIds, vscodeCopilotLiveIds],
   );
 
   // OpenClaw: query default model to determine which provider is default

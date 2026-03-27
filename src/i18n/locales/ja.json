@@ -598,7 +598,23 @@
     "codex": "Codex",
     "gemini": "Gemini",
     "opencode": "OpenCode",
-    "openclaw": "OpenClaw"
+    "openclaw": "OpenClaw",
+    "vscode-copilot": "VSCode Copilot"
+  },
+  "vscodeCopilot": {
+    "modelId": "モデル ID",
+    "displayName": "表示名",
+    "family": "モデルファミリー",
+    "version": "バージョン",
+    "maxInputTokens": "最大入力 Tokens",
+    "maxOutputTokens": "最大出力 Tokens",
+    "tooltip": "ツールチップ",
+    "apiBaseUrl": "API Base URL",
+    "imageInput": "画像入力をサポート",
+    "imageInputHint": "有効にすると、このモデルが画像入力対応として VS Code に公開されます。",
+    "toolCalling": "ツール呼び出しをサポート",
+    "toolCallingHint": "無効にすると、このモデルはツール呼び出し非対応として公開されます。",
+    "requiredFields": "モデル ID、表示名、モデルファミリーを入力してください"
   },
   "sessionManager": {
     "title": "セッション管理",
@@ -1955,6 +1971,7 @@
     "claudeModel": "Claude モデル",
     "codexModel": "Codex モデル",
     "geminiModel": "Gemini モデル",
+    "vscodeCopilotModel": "VSCode Copilot モデル",
     "checkParams": "チェックパラメーター",
     "timeout": "タイムアウト（秒）",
     "maxRetries": "最大リトライ回数",

@@ -163,6 +163,7 @@ command = "say"
                 codex: true,
                 gemini: false,
                 opencode: false,
+                vscode_copilot: false,
             },
             description: None,
             homepage: None,
@@ -900,4 +901,197 @@ fn provider_service_delete_current_provider_returns_error() {
         ),
         other => panic!("expected Config/Message error, got {other:?}"),
     }
+}
+
+#[test]
+fn stream_check_config_backfills_missing_vscode_copilot_model() {
+    let _guard = test_mutex().lock().expect("acquire test mutex");
+    reset_test_fs();
+    let _home = ensure_test_home();
+
+    let state = create_test_state().expect("create test state");
+    state
+        .db
+        .set_setting(
+            "stream_check_config",
+            r#"{"timeoutSecs":30,"maxRetries":1,"degradedThresholdMs":5000,"claudeModel":"claude-test","codexModel":"codex-test","geminiModel":"gemini-test","testPrompt":"ping"}"#,
+        )
+        .expect("seed legacy stream check config");
+
+    let config = state
+        .db
+        .get_stream_check_config()
+        .expect("read stream check config");
+
+    assert_eq!(config.timeout_secs, 30);
+    assert_eq!(config.max_retries, 1);
+    assert_eq!(config.degraded_threshold_ms, 5000);
+    assert_eq!(config.claude_model, "claude-test");
+    assert_eq!(config.codex_model, "codex-test");
+    assert_eq!(config.gemini_model, "gemini-test");
+    assert_eq!(config.test_prompt, "ping");
+    assert_eq!(
+        config.vscode_copilot_model,
+        "gpt-4o",
+        "legacy config should be backfilled with default vscode copilot model"
+    );
+}
+
+#[test]
+fn stream_check_config_preserves_existing_vscode_copilot_model() {
+    let _guard = test_mutex().lock().expect("acquire test mutex");
+    reset_test_fs();
+    let _home = ensure_test_home();
+
+    let state = create_test_state().expect("create test state");
+    state
+        .db
+        .set_setting(
+            "stream_check_config",
+            r#"{"timeoutSecs":30,"maxRetries":1,"degradedThresholdMs":5000,"claudeModel":"claude-test","codexModel":"codex-test","geminiModel":"gemini-test","vscodeCopilotModel":"claude-sonnet-4","testPrompt":"ping"}"#,
+        )
+        .expect("seed full stream check config");
+
+    let config = state
+        .db
+        .get_stream_check_config()
+        .expect("read stream check config");
+
+    assert_eq!(config.vscode_copilot_model, "claude-sonnet-4");
+}
+
+#[test]
+fn remove_vscode_copilot_provider_from_live_config_writes_remaining_ids_when_file_missing() {
+    let _guard = test_mutex().lock().expect("acquire test mutex");
+    reset_test_fs();
+    let _home = ensure_test_home();
+
+    let mut config = MultiAppConfig::default();
+    {
+        let manager = config
+            .get_manager_mut(&AppType::VscodeCopilot)
+            .expect("vscode copilot manager");
+        manager.providers.insert(
+            "alpha".to_string(),
+            Provider::with_id(
+                "alpha".to_string(),
+                "Alpha".to_string(),
+                json!({
+                    "id": "alpha-model",
+                    "name": "Alpha",
+                    "family": "custom",
+                    "base_url": "https://example.com/v1"
+                }),
+                None,
+            ),
+        );
+        manager.providers.insert(
+            "beta".to_string(),
+            Provider::with_id(
+                "beta".to_string(),
+                "Beta".to_string(),
+                json!({
+                    "id": "beta-model",
+                    "name": "Beta",
+                    "family": "custom",
+                    "base_url": "https://example.com/v1"
+                }),
+                None,
+            ),
+        );
+    }
+
+    let state = create_test_state_with_config(&config).expect("create test state");
+
+    ProviderService::remove_from_live_config(&state, AppType::VscodeCopilot, "alpha")
+        .expect("remove from live config");
+
+    let home = std::env::var("HOME").expect("HOME should be set");
+    let enabled_path = std::path::Path::new(&home)
+        .join(".cc-switch")
+        .join("vscode-copilot")
+        .join("enabled-providers.json");
+    let enabled_ids: Vec<String> = serde_json::from_str(
+        &std::fs::read_to_string(&enabled_path).expect("read enabled providers file"),
+    )
+    .expect("parse enabled providers file");
+
+    assert_eq!(enabled_ids, vec!["beta".to_string()]);
+
+    let providers = state
+        .db
+        .get_all_providers(AppType::VscodeCopilot.as_str())
+        .expect("get providers");
+    assert!(providers.contains_key("alpha"));
+    assert!(providers.contains_key("beta"));
+}
+
+#[test]
+fn remove_vscode_copilot_provider_from_live_config_updates_existing_file_only() {
+    let _guard = test_mutex().lock().expect("acquire test mutex");
+    reset_test_fs();
+    let home = ensure_test_home();
+
+    let mut config = MultiAppConfig::default();
+    {
+        let manager = config
+            .get_manager_mut(&AppType::VscodeCopilot)
+            .expect("vscode copilot manager");
+        manager.providers.insert(
+            "alpha".to_string(),
+            Provider::with_id(
+                "alpha".to_string(),
+                "Alpha".to_string(),
+                json!({
+                    "id": "alpha-model",
+                    "name": "Alpha",
+                    "family": "custom",
+                    "base_url": "https://example.com/v1"
+                }),
+                None,
+            ),
+        );
+        manager.providers.insert(
+            "beta".to_string(),
+            Provider::with_id(
+                "beta".to_string(),
+                "Beta".to_string(),
+                json!({
+                    "id": "beta-model",
+                    "name": "Beta",
+                    "family": "custom",
+                    "base_url": "https://example.com/v1"
+                }),
+                None,
+            ),
+        );
+    }
+
+    let enabled_dir = home.join(".cc-switch").join("vscode-copilot");
+    std::fs::create_dir_all(&enabled_dir).expect("create vscode copilot dir");
+    std::fs::write(
+        enabled_dir.join("enabled-providers.json"),
+        r#"["alpha","beta"]"#,
+    )
+    .expect("seed enabled providers file");
+
+    let state = create_test_state_with_config(&config).expect("create test state");
+
+    ProviderService::remove_from_live_config(&state, AppType::VscodeCopilot, "alpha")
+        .expect("remove from live config");
+
+    let enabled_ids: Vec<String> = serde_json::from_str(
+        &std::fs::read_to_string(enabled_dir.join("enabled-providers.json"))
+            .expect("read enabled providers file"),
+    )
+    .expect("parse enabled providers file");
+
+    assert_eq!(enabled_ids, vec!["beta".to_string()]);
+
+    let providers = state
+        .db
+        .get_all_providers(AppType::VscodeCopilot.as_str())
+        .expect("get providers");
+    assert!(providers.contains_key("alpha"));
+    assert!(providers.contains_key("beta"));
 }

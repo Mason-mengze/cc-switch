@@ -12,6 +12,7 @@ export interface StreamCheckConfig {
   claudeModel: string;
   codexModel: string;
   geminiModel: string;
+  vscodeCopilotModel: string;
   testPrompt: string;
 }
 

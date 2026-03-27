@@ -29,3 +29,6 @@ copilot-api
 .history
 CODEBUDDY.md
 .github
+src-tauri/target-tests/
+cc-switch-copilot-provider/
+sunny-soaring-squid.md

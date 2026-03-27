@@ -408,6 +408,20 @@ pub fn get_opencode_live_provider_ids() -> Result<Vec<String>, String> {
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub fn get_vscode_copilot_live_provider_ids(
+    state: State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    match crate::vscode_copilot_config::read_enabled_provider_ids().map_err(|e| e.to_string())? {
+        Some(ids) => Ok(ids),
+        None => state
+            .db
+            .get_all_providers(AppType::VscodeCopilot.as_str())
+            .map(|providers| providers.keys().cloned().collect())
+            .map_err(|e| e.to_string()),
+    }
+}
+
 // ============================================================================
 // OpenClaw 专属命令 → 已迁移至 commands/openclaw.rs
 // ============================================================================

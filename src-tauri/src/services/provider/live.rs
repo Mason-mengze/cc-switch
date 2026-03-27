@@ -332,7 +332,7 @@ fn settings_contain_common_config(app_type: &AppType, settings: &Value, snippet:
             }
             _ => false,
         },
-        AppType::OpenCode | AppType::OpenClaw => false,
+        AppType::OpenCode | AppType::OpenClaw | AppType::VscodeCopilot => false,
     }
 }
 
@@ -402,7 +402,7 @@ pub(crate) fn remove_common_config_from_settings(
             }
             Ok(result)
         }
-        AppType::OpenCode | AppType::OpenClaw => Ok(settings.clone()),
+        AppType::OpenCode | AppType::OpenClaw | AppType::VscodeCopilot => Ok(settings.clone()),
     }
 }
 
@@ -457,7 +457,7 @@ fn apply_common_config_to_settings(
             }
             Ok(result)
         }
-        AppType::OpenCode | AppType::OpenClaw => Ok(settings.clone()),
+        AppType::OpenCode | AppType::OpenClaw | AppType::VscodeCopilot => Ok(settings.clone()),
     }
 }
 
@@ -777,6 +777,11 @@ pub(crate) fn write_live_snapshot(app_type: &AppType, provider: &Provider) -> Re
                 }
             }
         }
+        AppType::VscodeCopilot => {
+            // VscodeCopilot uses additive mode - all providers are stored in database
+            // No live config file to write - the proxy server reads directly from database
+            log::debug!("VscodeCopilot provider '{}' saved - no live config needed", provider.id);
+        }
     }
     Ok(())
 }
@@ -965,6 +970,14 @@ pub fn read_live_settings(app_type: AppType) -> Result<Value, AppError> {
             let config = read_openclaw_config()?;
             Ok(config)
         }
+        AppType::VscodeCopilot => {
+            // VscodeCopilot doesn't have a live config file - all data in database
+            return Err(AppError::localized(
+                "vscode_copilot.config.not_applicable",
+                "VSCode Copilot 不使用 live 配置文件",
+                "VSCode Copilot does not use a live configuration file",
+            ));
+        }
     }
 }
 
@@ -1047,7 +1060,7 @@ pub fn import_default_config(state: &AppState, app_type: AppType) -> Result<bool
             })
         }
         // OpenCode and OpenClaw use additive mode and are handled by early return above
-        AppType::OpenCode | AppType::OpenClaw => {
+        AppType::OpenCode | AppType::OpenClaw | AppType::VscodeCopilot => {
             unreachable!("additive mode apps are handled by early return")
         }
     };

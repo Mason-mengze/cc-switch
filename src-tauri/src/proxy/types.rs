@@ -107,6 +107,65 @@ pub struct ProxyServerInfo {
     pub started_at: String,
 }
 
+/// VS Code Copilot models API response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VscodeModelsResponse {
+    pub object: String,
+    pub data: Vec<VscodeModelInfo>,
+}
+
+/// VS Code Copilot model metadata exposed via `/v1/models`
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VscodeModelInfo {
+    pub id: String,
+    pub name: String,
+    pub family: String,
+    #[serde(default = "default_vscode_model_version")]
+    pub version: String,
+    #[serde(default = "default_vscode_max_input_tokens")]
+    pub max_input_tokens: u32,
+    #[serde(default = "default_vscode_max_output_tokens")]
+    pub max_output_tokens: u32,
+    #[serde(default)]
+    pub tooltip: String,
+    #[serde(default)]
+    pub capabilities: VscodeModelCapabilities,
+    #[serde(default)]
+    pub provider_id: String,
+}
+
+/// Model capabilities for VS Code Copilot
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VscodeModelCapabilities {
+    #[serde(default)]
+    pub image_input: bool,
+    #[serde(default = "default_true")]
+    pub tool_calling: bool,
+}
+
+impl Default for VscodeModelCapabilities {
+    fn default() -> Self {
+        Self {
+            image_input: false,
+            tool_calling: true,
+        }
+    }
+}
+
+fn default_vscode_model_version() -> String {
+    "1.0.0".to_string()
+}
+
+fn default_vscode_max_input_tokens() -> u32 {
+    128_000
+}
+
+fn default_vscode_max_output_tokens() -> u32 {
+    8_192
+}
+
 /// 各应用的接管状态（是否改写该应用的 Live 配置指向本地代理）
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProxyTakeoverStatus {

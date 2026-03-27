@@ -3,6 +3,25 @@
 use crate::database::{lock_conn, Database};
 use crate::error::AppError;
 use crate::services::stream_check::{StreamCheckConfig, StreamCheckResult};
+use serde_json::Value;
+
+fn merge_missing_defaults(target: &mut Value, defaults: &Value) {
+    if let (Some(target_map), Some(default_map)) = (target.as_object_mut(), defaults.as_object()) {
+        for (key, default_value) in default_map {
+            match target_map.get_mut(key) {
+                Some(existing) => merge_missing_defaults(existing, default_value),
+                None => {
+                    target_map.insert(key.clone(), default_value.clone());
+                }
+            }
+        }
+        return;
+    }
+
+    if target.is_null() {
+        *target = defaults.clone();
+    }
+}
 
 impl Database {
     /// 保存流式检查日志
@@ -42,8 +61,15 @@ impl Database {
     /// 获取流式检查配置
     pub fn get_stream_check_config(&self) -> Result<StreamCheckConfig, AppError> {
         match self.get_setting("stream_check_config")? {
-            Some(json) => serde_json::from_str(&json)
-                .map_err(|e| AppError::Message(format!("解析配置失败: {e}"))),
+            Some(json) => {
+                let mut value: Value = serde_json::from_str(&json)
+                    .map_err(|e| AppError::Message(format!("解析配置失败: {e}")))?;
+                let defaults = serde_json::to_value(StreamCheckConfig::default())
+                    .map_err(|e| AppError::Message(format!("序列化默认配置失败: {e}")))?;
+                merge_missing_defaults(&mut value, &defaults);
+                serde_json::from_value(value)
+                    .map_err(|e| AppError::Message(format!("解析配置失败: {e}")))
+            }
             None => Ok(StreamCheckConfig::default()),
         }
     }

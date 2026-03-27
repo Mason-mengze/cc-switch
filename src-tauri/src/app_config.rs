@@ -15,6 +15,8 @@ pub struct McpApps {
     pub gemini: bool,
     #[serde(default)]
     pub opencode: bool,
+    #[serde(default, rename = "vscode-copilot")]
+    pub vscode_copilot: bool,
 }
 
 impl McpApps {
@@ -26,6 +28,7 @@ impl McpApps {
             AppType::Gemini => self.gemini,
             AppType::OpenCode => self.opencode,
             AppType::OpenClaw => false, // OpenClaw doesn't support MCP
+            AppType::VscodeCopilot => false, // VSCode Copilot doesn't support MCP
         }
     }
 
@@ -37,6 +40,7 @@ impl McpApps {
             AppType::Gemini => self.gemini = enabled,
             AppType::OpenCode => self.opencode = enabled,
             AppType::OpenClaw => {} // OpenClaw doesn't support MCP, ignore
+            AppType::VscodeCopilot => {} // VSCode Copilot doesn't support MCP, ignore
         }
     }
 
@@ -61,6 +65,7 @@ impl McpApps {
     /// 检查是否所有应用都未启用
     pub fn is_empty(&self) -> bool {
         !self.claude && !self.codex && !self.gemini && !self.opencode
+            && !self.vscode_copilot
     }
 }
 
@@ -75,6 +80,8 @@ pub struct SkillApps {
     pub gemini: bool,
     #[serde(default)]
     pub opencode: bool,
+    #[serde(default, rename = "vscode-copilot")]
+    pub vscode_copilot: bool,
 }
 
 impl SkillApps {
@@ -86,6 +93,7 @@ impl SkillApps {
             AppType::Gemini => self.gemini,
             AppType::OpenCode => self.opencode,
             AppType::OpenClaw => false, // OpenClaw doesn't support Skills
+            AppType::VscodeCopilot => false, // VSCode Copilot doesn't support Skills
         }
     }
 
@@ -97,6 +105,7 @@ impl SkillApps {
             AppType::Gemini => self.gemini = enabled,
             AppType::OpenCode => self.opencode = enabled,
             AppType::OpenClaw => {} // OpenClaw doesn't support Skills, ignore
+            AppType::VscodeCopilot => {} // VSCode Copilot doesn't support Skills, ignore
         }
     }
 
@@ -121,6 +130,7 @@ impl SkillApps {
     /// 检查是否所有应用都未启用
     pub fn is_empty(&self) -> bool {
         !self.claude && !self.codex && !self.gemini && !self.opencode
+            && !self.vscode_copilot
     }
 
     /// 仅启用指定应用（其他应用设为禁用）
@@ -245,6 +255,13 @@ pub struct McpRoot {
     /// OpenClaw MCP 配置（v4.1.0+，实际使用 openclaw.json）
     #[serde(default, skip_serializing_if = "McpConfig::is_empty")]
     pub openclaw: McpConfig,
+    /// VSCode Copilot MCP 配置（保留结构完整性，当前不启用）
+    #[serde(
+        default,
+        skip_serializing_if = "McpConfig::is_empty",
+        rename = "vscode-copilot"
+    )]
+    pub vscode_copilot: McpConfig,
 }
 
 impl Default for McpRoot {
@@ -258,6 +275,7 @@ impl Default for McpRoot {
             gemini: McpConfig::default(),
             opencode: McpConfig::default(),
             openclaw: McpConfig::default(),
+            vscode_copilot: McpConfig::default(),
         }
     }
 }
@@ -298,6 +316,8 @@ pub enum AppType {
     Gemini,
     OpenCode,
     OpenClaw,
+    #[serde(rename = "vscode-copilot")]
+    VscodeCopilot,
 }
 
 impl AppType {
@@ -308,15 +328,16 @@ impl AppType {
             AppType::Gemini => "gemini",
             AppType::OpenCode => "opencode",
             AppType::OpenClaw => "openclaw",
+            AppType::VscodeCopilot => "vscode-copilot",
         }
     }
 
     /// Check if this app uses additive mode
     ///
     /// - Switch mode (false): Only the current provider is written to live config (Claude, Codex, Gemini)
-    /// - Additive mode (true): All providers are written to live config (OpenCode, OpenClaw)
+    /// - Additive mode (true): All providers are written to live config (OpenCode, OpenClaw, VscodeCopilot)
     pub fn is_additive_mode(&self) -> bool {
-        matches!(self, AppType::OpenCode | AppType::OpenClaw)
+        matches!(self, AppType::OpenCode | AppType::OpenClaw | AppType::VscodeCopilot)
     }
 
     /// Return an iterator over all app types
@@ -327,6 +348,7 @@ impl AppType {
             AppType::Gemini,
             AppType::OpenCode,
             AppType::OpenClaw,
+            AppType::VscodeCopilot,
         ]
         .into_iter()
     }
@@ -343,10 +365,11 @@ impl FromStr for AppType {
             "gemini" => Ok(AppType::Gemini),
             "opencode" => Ok(AppType::OpenCode),
             "openclaw" => Ok(AppType::OpenClaw),
+            "vscode-copilot" => Ok(AppType::VscodeCopilot),
             other => Err(AppError::localized(
                 "unsupported_app",
-                format!("不支持的应用标识: '{other}'。可选值: claude, codex, gemini, opencode, openclaw。"),
-                format!("Unsupported app id: '{other}'. Allowed: claude, codex, gemini, opencode, openclaw."),
+                format!("不支持的应用标识: '{other}'。可选值: claude, codex, gemini, opencode, openclaw, vscode-copilot。"),
+                format!("Unsupported app id: '{other}'. Allowed: claude, codex, gemini, opencode, openclaw, vscode-copilot."),
             )),
         }
     }
@@ -369,6 +392,9 @@ pub struct CommonConfigSnippets {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub openclaw: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "vscode-copilot")]
+    pub vscode_copilot: Option<String>,
 }
 
 impl CommonConfigSnippets {
@@ -380,6 +406,7 @@ impl CommonConfigSnippets {
             AppType::Gemini => self.gemini.as_ref(),
             AppType::OpenCode => self.opencode.as_ref(),
             AppType::OpenClaw => self.openclaw.as_ref(),
+            AppType::VscodeCopilot => self.vscode_copilot.as_ref(),
         }
     }
 
@@ -391,6 +418,7 @@ impl CommonConfigSnippets {
             AppType::Gemini => self.gemini = snippet,
             AppType::OpenCode => self.opencode = snippet,
             AppType::OpenClaw => self.openclaw = snippet,
+            AppType::VscodeCopilot => self.vscode_copilot = snippet,
         }
     }
 }
@@ -432,6 +460,7 @@ impl Default for MultiAppConfig {
         apps.insert("gemini".to_string(), ProviderManager::default());
         apps.insert("opencode".to_string(), ProviderManager::default());
         apps.insert("openclaw".to_string(), ProviderManager::default());
+        apps.insert("vscode-copilot".to_string(), ProviderManager::default());
 
         Self {
             version: 2,
@@ -592,6 +621,7 @@ impl MultiAppConfig {
             AppType::Gemini => &self.mcp.gemini,
             AppType::OpenCode => &self.mcp.opencode,
             AppType::OpenClaw => &self.mcp.openclaw,
+            AppType::VscodeCopilot => &self.mcp.vscode_copilot,
         }
     }
 
@@ -603,6 +633,7 @@ impl MultiAppConfig {
             AppType::Gemini => &mut self.mcp.gemini,
             AppType::OpenCode => &mut self.mcp.opencode,
             AppType::OpenClaw => &mut self.mcp.openclaw,
+            AppType::VscodeCopilot => &mut self.mcp.vscode_copilot,
         }
     }
 
@@ -723,6 +754,7 @@ impl MultiAppConfig {
             AppType::Gemini => &mut config.prompts.gemini.prompts,
             AppType::OpenCode => &mut config.prompts.opencode.prompts,
             AppType::OpenClaw => &mut config.prompts.openclaw.prompts,
+            AppType::VscodeCopilot => return Ok(false),
         };
 
         prompts.insert(id, prompt);
@@ -763,6 +795,7 @@ impl MultiAppConfig {
                 AppType::Gemini => &self.mcp.gemini.servers,
                 AppType::OpenCode => &self.mcp.opencode.servers,
                 AppType::OpenClaw => continue, // OpenClaw MCP is still in development, skip
+                AppType::VscodeCopilot => continue, // VSCode Copilot does not support MCP
             };
 
             for (id, entry) in old_servers {

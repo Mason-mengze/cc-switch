@@ -57,6 +57,7 @@ fn import_from_apps_respects_explicit_app_selection() {
                 codex: false,
                 gemini: false,
                 opencode: true,
+                vscode_copilot: false,
             },
         }],
     )
@@ -108,6 +109,7 @@ fn sync_to_app_removes_disabled_and_orphaned_ssot_symlinks() {
                 codex: false,
                 gemini: false,
                 opencode: false,
+                vscode_copilot: false,
             },
             installed_at: 0,
         })
@@ -152,6 +154,7 @@ fn uninstall_skill_creates_backup_before_removing_ssot() {
                 codex: false,
                 gemini: false,
                 opencode: false,
+                vscode_copilot: false,
             },
             installed_at: 123,
         })
@@ -220,6 +223,7 @@ fn restore_skill_backup_restores_files_to_ssot_and_current_app() {
                 codex: false,
                 gemini: false,
                 opencode: false,
+                vscode_copilot: false,
             },
             installed_at: 456,
         })
@@ -301,6 +305,7 @@ fn delete_skill_backup_removes_backup_directory() {
                 codex: false,
                 gemini: false,
                 opencode: false,
+                vscode_copilot: false,
             },
             installed_at: 789,
         })
@@ -383,3 +388,4 @@ fn migration_snapshot_overrides_multi_source_directory_inference() {
         "migration should no longer infer OpenCode enablement from a duplicate directory alone"
     );
 }
+

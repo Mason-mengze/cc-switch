@@ -21,6 +21,11 @@ const APP_CONFIG: Array<{
   { id: "gemini", icon: "gemini", nameKey: "apps.gemini" },
   { id: "opencode", icon: "opencode", nameKey: "apps.opencode" },
   { id: "openclaw", icon: "openclaw", nameKey: "apps.openclaw" },
+  {
+    id: "vscode-copilot",
+    icon: "copilot",
+    nameKey: "apps.vscode-copilot",
+  },
 ];
 
 export function AppVisibilitySettings({
@@ -35,6 +40,7 @@ export function AppVisibilitySettings({
     gemini: true,
     opencode: true,
     openclaw: true,
+    "vscode-copilot": true,
   };
 
   // Count how many apps are currently visible

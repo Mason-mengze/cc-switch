@@ -193,8 +193,10 @@ impl RequestForwarder {
 
             // PRE-SEND 优化器：每个 provider 独立决定是否优化
             // clone body 以避免 Bedrock 优化字段泄漏到非 Bedrock provider（failover 场景）
-            let mut provider_body =
-                if self.optimizer_config.enabled && is_bedrock_provider(provider) {
+            let mut provider_body = if self.optimizer_config.enabled
+                && matches!(app_type, AppType::Claude)
+                && is_bedrock_provider(provider)
+            {
                     let mut b = body.clone();
                     if self.optimizer_config.thinking_optimizer {
                         super::thinking_optimizer::optimize(&mut b, &self.optimizer_config);
@@ -203,9 +205,9 @@ impl RequestForwarder {
                         super::cache_injector::inject(&mut b, &self.optimizer_config);
                     }
                     b
-                } else {
-                    body.clone()
-                };
+            } else {
+                body.clone()
+            };
 
             attempted_providers += 1;
 
@@ -1311,5 +1313,30 @@ mod tests {
             &json!({ "model": "gpt-5" }),
             &headers
         ));
+    }
+
+    #[test]
+    fn bedrock_detection_reads_only_claude_flag_from_env() {
+        let provider = Provider {
+            id: "test".to_string(),
+            name: "test".to_string(),
+            settings_config: json!({
+                "env": {
+                    "CLAUDE_CODE_USE_BEDROCK": "1"
+                }
+            }),
+            website_url: None,
+            category: None,
+            created_at: None,
+            sort_index: None,
+            notes: None,
+            meta: None,
+            icon: None,
+            icon_color: None,
+            in_failover_queue: false,
+        };
+
+        assert!(is_bedrock_provider(&provider));
+        assert!(!matches!(AppType::VscodeCopilot, AppType::Claude));
     }
 }

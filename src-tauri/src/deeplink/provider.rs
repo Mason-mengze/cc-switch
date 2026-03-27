@@ -147,6 +147,7 @@ pub(crate) fn build_provider_from_request(
         AppType::Gemini => build_gemini_settings(request),
         AppType::OpenCode => build_opencode_settings(request),
         AppType::OpenClaw => build_openclaw_settings(request),
+        AppType::VscodeCopilot => build_vscode_copilot_settings(request),
     };
 
     // Build usage script configuration if provided
@@ -421,6 +422,39 @@ fn build_openclaw_settings(request: &DeepLinkImportRequest) -> serde_json::Value
     json!(config)
 }
 
+fn build_vscode_copilot_settings(request: &DeepLinkImportRequest) -> serde_json::Value {
+    let endpoint = get_primary_endpoint(request)
+        .trim()
+        .trim_end_matches('/')
+        .to_string();
+    let model = request
+        .model
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or("custom-model");
+    let name = request
+        .name
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or(model);
+
+    json!({
+        "id": model,
+        "name": name,
+        "family": "custom",
+        "version": "1.0.0",
+        "maxInputTokens": 128000,
+        "maxOutputTokens": 8192,
+        "tooltip": format!("{name} via CC Switch"),
+        "capabilities": {
+            "imageInput": false,
+            "toolCalling": true,
+        },
+        "base_url": endpoint,
+        "api_key": request.api_key.clone().unwrap_or_default(),
+    })
+}
+
 // =============================================================================
 // Config Merge Logic
 // =============================================================================
@@ -483,7 +517,7 @@ pub fn parse_and_merge_config(
         "codex" => merge_codex_config(&mut merged, &config_value)?,
         "gemini" => merge_gemini_config(&mut merged, &config_value)?,
         // Additive mode apps use JSON config directly; pass through as-is
-        "openclaw" | "opencode" => {
+        "openclaw" | "opencode" | "vscode-copilot" => {
             merge_additive_config(&mut merged, &config_value)?;
         }
         "" => {

@@ -71,6 +71,11 @@ export const useAddProviderMutation = (appId: AppId) => {
           queryKey: openclawKeys.health,
         });
       }
+      if (appId === "vscode-copilot") {
+        await queryClient.invalidateQueries({
+          queryKey: ["vscodeCopilotLiveProviderIds"],
+        });
+      }
 
       try {
         await providersApi.updateTrayMenu();
@@ -116,6 +121,11 @@ export const useUpdateProviderMutation = (appId: AppId) => {
       if (appId === "openclaw") {
         await queryClient.invalidateQueries({
           queryKey: openclawKeys.health,
+        });
+      }
+      if (appId === "vscode-copilot") {
+        await queryClient.invalidateQueries({
+          queryKey: ["vscodeCopilotLiveProviderIds"],
         });
       }
       toast.success(
@@ -233,6 +243,11 @@ export const useSwitchProviderMutation = (appId: AppId) => {
         });
         await queryClient.invalidateQueries({
           queryKey: openclawKeys.health,
+        });
+      }
+      if (appId === "vscode-copilot") {
+        await queryClient.invalidateQueries({
+          queryKey: ["vscodeCopilotLiveProviderIds"],
         });
       }
 

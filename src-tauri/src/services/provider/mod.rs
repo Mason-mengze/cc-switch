@@ -186,6 +186,11 @@ impl ProviderService {
                 // Users must explicitly switch/apply an OMO provider to activate it.
                 return Ok(true);
             }
+            if matches!(app_type, AppType::VscodeCopilot)
+                && crate::vscode_copilot_config::read_enabled_provider_ids()?.is_some()
+            {
+                crate::vscode_copilot_config::add_enabled_provider_id(&provider.id)?;
+            }
             write_live_with_common_config(state.db.as_ref(), &app_type, &provider)?;
             return Ok(true);
         }
@@ -249,6 +254,11 @@ impl ProviderService {
                     )?;
                 }
                 return Ok(true);
+            }
+            if matches!(app_type, AppType::VscodeCopilot)
+                && crate::vscode_copilot_config::read_enabled_provider_ids()?.is_some()
+            {
+                crate::vscode_copilot_config::add_enabled_provider_id(&provider.id)?;
             }
             write_live_with_common_config(state.db.as_ref(), &app_type, &provider)?;
             return Ok(true);
@@ -337,6 +347,7 @@ impl ProviderService {
             match app_type {
                 AppType::OpenCode => remove_opencode_provider_from_live(id)?,
                 AppType::OpenClaw => remove_openclaw_provider_from_live(id)?,
+                AppType::VscodeCopilot => crate::vscode_copilot_config::remove_enabled_provider_id(id)?,
                 _ => {} // Should not reach here
             }
             return Ok(());
@@ -414,6 +425,19 @@ impl ProviderService {
             }
             AppType::OpenClaw => {
                 remove_openclaw_provider_from_live(id)?;
+            }
+            AppType::VscodeCopilot => {
+                if crate::vscode_copilot_config::read_enabled_provider_ids()?.is_some() {
+                    crate::vscode_copilot_config::remove_enabled_provider_id(id)?;
+                } else {
+                    let providers = state.db.get_all_providers(app_type.as_str())?;
+                    let enabled_ids = providers
+                        .keys()
+                        .filter(|provider_id| provider_id.as_str() != id)
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    crate::vscode_copilot_config::write_enabled_provider_ids(&enabled_ids)?;
+                }
             }
             _ => {
                 return Err(AppError::Message(format!(
@@ -755,6 +779,7 @@ impl ProviderService {
             AppType::Gemini => Self::extract_gemini_common_config(&provider.settings_config),
             AppType::OpenCode => Self::extract_opencode_common_config(&provider.settings_config),
             AppType::OpenClaw => Self::extract_openclaw_common_config(&provider.settings_config),
+            AppType::VscodeCopilot => Ok("{}".to_string()),
         }
     }
 
@@ -769,6 +794,7 @@ impl ProviderService {
             AppType::Gemini => Self::extract_gemini_common_config(settings_config),
             AppType::OpenCode => Self::extract_opencode_common_config(settings_config),
             AppType::OpenClaw => Self::extract_openclaw_common_config(settings_config),
+            AppType::VscodeCopilot => Ok("{}".to_string()),
         }
     }
 
@@ -1134,6 +1160,31 @@ impl ProviderService {
                     ));
                 }
             }
+            AppType::VscodeCopilot => {
+                let settings = provider.settings_config.as_object().ok_or_else(|| {
+                    AppError::localized(
+                        "provider.vscode_copilot.settings.not_object",
+                        "VSCode Copilot 配置必须是 JSON 对象",
+                        "VSCode Copilot configuration must be a JSON object",
+                    )
+                })?;
+
+                for field in ["id", "name", "family", "base_url"] {
+                    if settings
+                        .get(field)
+                        .and_then(|value| value.as_str())
+                        .is_none_or(|value| value.trim().is_empty())
+                    {
+                        return Err(AppError::localized(
+                            "provider.vscode_copilot.required_field_missing",
+                            format!("VSCode Copilot 配置缺少必填字段: {field}"),
+                            format!(
+                                "VSCode Copilot configuration is missing required field: {field}"
+                            ),
+                        ));
+                    }
+                }
+            }
         }
 
         // Validate and clean UsageScript configuration (common for all app types)
@@ -1323,6 +1374,23 @@ impl ProviderService {
                 let base_url = provider
                     .settings_config
                     .get("baseUrl")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                Ok((api_key, base_url))
+            }
+            AppType::VscodeCopilot => {
+                let api_key = provider
+                    .settings_config
+                    .get("api_key")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                let base_url = provider
+                    .settings_config
+                    .get("base_url")
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string();

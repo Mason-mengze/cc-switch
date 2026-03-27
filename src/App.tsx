@@ -104,6 +104,7 @@ const VALID_APPS: AppId[] = [
   "gemini",
   "opencode",
   "openclaw",
+  "vscode-copilot",
 ];
 
 const getInitialApp = (): AppId => {
@@ -159,6 +160,7 @@ function App() {
     gemini: true,
     opencode: true,
     openclaw: true,
+    "vscode-copilot": true,
   };
 
   const getFirstVisibleApp = (): AppId => {
@@ -167,6 +169,7 @@ function App() {
     if (visibleApps.gemini) return "gemini";
     if (visibleApps.opencode) return "opencode";
     if (visibleApps.openclaw) return "openclaw";
+    if (visibleApps["vscode-copilot"]) return "vscode-copilot";
     return "claude"; // fallback
   };
 
@@ -240,13 +243,28 @@ function App() {
       currentView === "openclawAgents");
   const { data: openclawHealthWarnings = [] } =
     useOpenClawHealth(isOpenClawView);
-  const hasSkillsSupport = true;
+  const hasSkillsSupport = activeApp !== "vscode-copilot";
   const hasSessionSupport =
     activeApp === "claude" ||
     activeApp === "codex" ||
     activeApp === "opencode" ||
     activeApp === "openclaw" ||
     activeApp === "gemini";
+  const hasPromptSupport = activeApp !== "vscode-copilot";
+  const hasMcpSupport = activeApp !== "vscode-copilot";
+
+  useEffect(() => {
+    if (
+      activeApp === "vscode-copilot" &&
+      (currentView === "skills" ||
+        currentView === "skillsDiscovery" ||
+        currentView === "prompts" ||
+        currentView === "mcp" ||
+        currentView === "sessions")
+    ) {
+      setCurrentView("providers");
+    }
+  }, [activeApp, currentView]);
 
   const {
     addProvider,
@@ -538,6 +556,27 @@ function App() {
     setEditingProvider(null);
   };
 
+  const handleRemoveFromConfig = async (provider: Provider) => {
+    if (activeApp !== "vscode-copilot") {
+      setConfirmAction({ provider, action: "remove" });
+      return;
+    }
+
+    await providersApi.removeFromLiveConfig(provider.id, activeApp);
+    await queryClient.invalidateQueries({
+      queryKey: ["vscodeCopilotLiveProviderIds"],
+    });
+    await queryClient.invalidateQueries({
+      queryKey: ["providers", activeApp],
+    });
+    toast.success(
+      t("notifications.removeFromConfigSuccess", {
+        defaultValue: "已从配置移除",
+      }),
+      { closeButton: true },
+    );
+  };
+
   const handleConfirmAction = async () => {
     if (!confirmAction) return;
     const { provider, action } = confirmAction;
@@ -557,6 +596,10 @@ function App() {
         });
         await queryClient.invalidateQueries({
           queryKey: openclawKeys.health,
+        });
+      } else if (activeApp === "vscode-copilot") {
+        await queryClient.invalidateQueries({
+          queryKey: ["vscodeCopilotLiveProviderIds"],
         });
       }
       toast.success(
@@ -781,9 +824,10 @@ function App() {
                         setConfirmAction({ provider, action: "delete" })
                       }
                       onRemoveFromConfig={
-                        activeApp === "opencode" || activeApp === "openclaw"
-                          ? (provider) =>
-                              setConfirmAction({ provider, action: "remove" })
+                        activeApp === "opencode" ||
+                        activeApp === "openclaw" ||
+                        activeApp === "vscode-copilot"
+                          ? (provider) => void handleRemoveFromConfig(provider)
                           : undefined
                       }
                       onDisableOmo={
@@ -1192,6 +1236,7 @@ function App() {
                                 onClick={() => setCurrentView("prompts")}
                                 className="text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5"
                                 title={t("prompts.manage")}
+                                disabled={!hasPromptSupport}
                               >
                                 <Book className="w-4 h-4" />
                               </Button>
@@ -1216,6 +1261,7 @@ function App() {
                                 onClick={() => setCurrentView("mcp")}
                                 className="text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5"
                                 title={t("mcp.title")}
+                                disabled={!hasMcpSupport}
                               >
                                 <McpIcon size={16} />
                               </Button>

@@ -383,6 +383,10 @@ impl ProxyService {
                 // OpenClaw doesn't support proxy features
                 return Err("OpenClaw 不支持代理功能".to_string());
             }
+            AppType::VscodeCopilot => {
+                // VscodeCopilot doesn't support proxy backfill
+                return Err("VSCode Copilot 不支持代理回填功能".to_string());
+            }
         };
 
         self.sync_live_config_to_provider(app_type, &live_config)
@@ -602,6 +606,9 @@ impl ProxyService {
             AppType::OpenClaw => {
                 // OpenClaw doesn't support proxy features, skip silently
             }
+            AppType::VscodeCopilot => {
+                // VscodeCopilot doesn't support proxy features, skip silently
+            }
         }
 
         Ok(())
@@ -787,6 +794,10 @@ impl ProxyService {
             AppType::OpenClaw => {
                 // OpenClaw doesn't support proxy features
                 return Err("OpenClaw 不支持代理功能".to_string());
+            }
+            AppType::VscodeCopilot => {
+                // VscodeCopilot doesn't support proxy features
+                return Err("VSCode Copilot 不支持代理功能".to_string());
             }
         };
 
@@ -1004,6 +1015,10 @@ impl ProxyService {
                 // OpenClaw doesn't support proxy features
                 return Err("OpenClaw 不支持代理功能".to_string());
             }
+            AppType::VscodeCopilot => {
+                // VscodeCopilot doesn't support proxy takeover
+                return Err("VSCode Copilot 不支持代理接管功能".to_string());
+            }
         }
 
         Ok(())
@@ -1093,6 +1108,9 @@ impl ProxyService {
             AppType::OpenClaw => {
                 // OpenClaw doesn't support proxy features, skip silently
             }
+            AppType::VscodeCopilot => {
+                // VscodeCopilot doesn't support proxy features, skip silently
+            }
         }
 
         Ok(())
@@ -1130,6 +1148,9 @@ impl ProxyService {
             }
             AppType::OpenClaw => {
                 // OpenClaw doesn't support proxy features, skip silently
+            }
+            AppType::VscodeCopilot => {
+                // VscodeCopilot doesn't support proxy features, skip silently
             }
         }
 
@@ -1218,6 +1239,10 @@ impl ProxyService {
                 // OpenClaw doesn't support proxy features
                 Err("OpenClaw 不支持代理功能".to_string())
             }
+            AppType::VscodeCopilot => {
+                // VscodeCopilot doesn't support proxy features
+                Err("VSCode Copilot 不支持代理功能".to_string())
+            }
         }
     }
 
@@ -1241,6 +1266,10 @@ impl ProxyService {
             }
             AppType::OpenClaw => {
                 // OpenClaw doesn't support proxy takeover
+                false
+            }
+            AppType::VscodeCopilot => {
+                // VscodeCopilot doesn't support proxy takeover
                 false
             }
         }
@@ -1288,6 +1317,10 @@ impl ProxyService {
             }
             AppType::OpenClaw => {
                 // OpenClaw doesn't support proxy features
+                Ok(())
+            }
+            AppType::VscodeCopilot => {
+                // VscodeCopilot doesn't support proxy features
                 Ok(())
             }
         }
@@ -1526,7 +1559,7 @@ impl ProxyService {
                 serde_json::to_string(&env_backup)
                     .map_err(|e| format!("序列化 Gemini 配置失败: {e}"))?
             }
-            AppType::OpenCode | AppType::OpenClaw => {
+            AppType::OpenCode | AppType::OpenClaw | AppType::VscodeCopilot => {
                 return Err(format!("未知的应用类型: {app_type}"));
             }
         };

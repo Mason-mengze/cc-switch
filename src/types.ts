@@ -190,6 +190,7 @@ export interface VisibleApps {
   gemini: boolean;
   opencode: boolean;
   openclaw: boolean;
+  "vscode-copilot": boolean;
 }
 
 // WebDAV 同步状态
@@ -277,6 +278,8 @@ export interface Settings {
   opencodeConfigDir?: string;
   // 覆盖 OpenClaw 配置目录（可选）
   openclawConfigDir?: string;
+  // 覆盖 VSCode Copilot 配置目录（可选）
+  vscodeCopilotConfigDir?: string;
 
   // ===== 当前供应商 ID（设备级）=====
   // 当前 Claude 供应商 ID（优先于数据库 is_current）
@@ -285,6 +288,8 @@ export interface Settings {
   currentProviderCodex?: string;
   // 当前 Gemini 供应商 ID（优先于数据库 is_current）
   currentProviderGemini?: string;
+  // 当前 VSCode Copilot 供应商 ID（保留结构一致性）
+  currentProviderVscodeCopilot?: string;
 
   // ===== Skill 同步设置 =====
   // Skill 同步方式：auto（默认，优先 symlink）、symlink、copy
@@ -348,6 +353,7 @@ export interface McpApps {
   gemini: boolean;
   opencode: boolean;
   openclaw: boolean;
+  "vscode-copilot": boolean;
 }
 
 // MCP 服务器条目（v3.7.0 统一结构）
@@ -540,6 +546,22 @@ export interface OpenClawProviderConfig {
   models?: OpenClawModel[]; // 可用模型列表
   headers?: Record<string, string>; // 自定义请求头（如 User-Agent）
   authHeader?: boolean; // 供应商自定义认证开关（如 Longcat）
+}
+
+export interface VscodeCopilotProviderConfig {
+  id: string;
+  name: string;
+  family: string;
+  version?: string;
+  maxInputTokens?: number;
+  maxOutputTokens?: number;
+  tooltip?: string;
+  capabilities?: {
+    imageInput?: boolean;
+    toolCalling?: boolean;
+  };
+  base_url?: string;
+  api_key?: string;
 }
 
 // OpenClaw agents.defaults 完整配置

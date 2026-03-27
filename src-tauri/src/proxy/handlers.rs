@@ -50,6 +50,220 @@ pub async fn get_status(State(state): State<ProxyState>) -> Result<Json<ProxySta
     Ok(Json(status))
 }
 
+/// 获取 VS Code Copilot 可用模型列表
+pub async fn handle_vscode_models(
+    State(state): State<ProxyState>,
+) -> Result<Json<VscodeModelsResponse>, ProxyError> {
+    let providers = state
+        .db
+        .get_all_providers(AppType::VscodeCopilot.as_str())
+        .map_err(|err| ProxyError::DatabaseError(err.to_string()))?;
+    let enabled_ids = crate::vscode_copilot_config::read_enabled_provider_ids()
+        .map_err(|err| ProxyError::DatabaseError(err.to_string()))?
+        .unwrap_or_else(|| providers.keys().cloned().collect());
+
+    let mut data = Vec::with_capacity(enabled_ids.len());
+    for provider_id in enabled_ids {
+        let Some(provider) = providers.get(&provider_id) else {
+            continue;
+        };
+        if let Some(model) = provider_to_vscode_model(&provider) {
+            data.push(model);
+        }
+    }
+
+    Ok(Json(VscodeModelsResponse {
+        object: "list".to_string(),
+        data,
+    }))
+}
+
+fn provider_to_vscode_model(provider: &crate::provider::Provider) -> Option<VscodeModelInfo> {
+    let mut model: VscodeModelInfo =
+        serde_json::from_value(provider.settings_config.clone()).unwrap_or_else(|_| {
+            VscodeModelInfo {
+                id: provider.id.clone(),
+                name: provider.name.clone(),
+                family: provider
+                    .category
+                    .clone()
+                    .unwrap_or_else(|| "custom".to_string()),
+                version: "1.0.0".to_string(),
+                max_input_tokens: 128_000,
+                max_output_tokens: 8_192,
+                tooltip: provider.name.clone(),
+                capabilities: VscodeModelCapabilities {
+                    image_input: false,
+                    tool_calling: true,
+                },
+                provider_id: provider.id.clone(),
+            }
+        });
+
+    if model.id.trim().is_empty() {
+        model.id = provider.id.clone();
+    }
+    if model.name.trim().is_empty() {
+        model.name = provider.name.clone();
+    }
+    if model.family.trim().is_empty() {
+        model.family = "custom".to_string();
+    }
+    if model.tooltip.trim().is_empty() {
+        model.tooltip = format!("{} via CC Switch", model.name);
+    }
+    model.provider_id = provider.id.clone();
+
+    if model.id.trim().is_empty() || model.name.trim().is_empty() {
+        return None;
+    }
+
+    Some(model)
+}
+
+fn is_vscode_copilot_request(headers: &axum::http::HeaderMap) -> bool {
+    headers
+        .get("x-cc-switch-app")
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.eq_ignore_ascii_case("vscode-copilot"))
+}
+
+fn model_matches_vscode_provider(provider: &crate::provider::Provider, request_model: &str) -> bool {
+    provider
+        .settings_config
+        .get("id")
+        .and_then(|value| value.as_str())
+        .is_some_and(|model_id| model_id == request_model)
+}
+
+async fn resolve_chat_app_type(
+    state: &ProxyState,
+    headers: &axum::http::HeaderMap,
+    body: &Value,
+) -> AppType {
+    if is_vscode_copilot_request(headers) {
+        return AppType::VscodeCopilot;
+    }
+
+    let request_model = body.get("model").and_then(|m| m.as_str()).unwrap_or("");
+    if request_model.is_empty() {
+        return AppType::Codex;
+    }
+
+    match state.db.get_all_providers(AppType::VscodeCopilot.as_str()) {
+        Ok(providers) => {
+            let enabled_ids = crate::vscode_copilot_config::read_enabled_provider_ids()
+                .ok()
+                .flatten()
+                .unwrap_or_else(|| providers.keys().cloned().collect::<Vec<_>>());
+            if enabled_ids.into_iter().any(|provider_id| {
+                providers
+                    .get(&provider_id)
+                    .is_some_and(|provider| model_matches_vscode_provider(provider, request_model))
+            }) {
+                AppType::VscodeCopilot
+            } else {
+                AppType::Codex
+            }
+        }
+        _ => AppType::Codex,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        is_vscode_copilot_request, model_matches_vscode_provider, provider_to_vscode_model,
+    };
+    use crate::provider::Provider;
+    use serde_json::json;
+    use axum::http::{HeaderMap, HeaderValue};
+
+    #[test]
+    fn provider_to_vscode_model_applies_defaults() {
+        let provider = Provider::with_id(
+            "copilot-provider".to_string(),
+            "My Model".to_string(),
+            json!({
+                "id": "",
+                "name": "",
+                "family": "",
+                "base_url": "https://example.com/v1"
+            }),
+            None,
+        );
+
+        let model = provider_to_vscode_model(&provider).expect("model should be generated");
+        assert_eq!(model.id, "copilot-provider");
+        assert_eq!(model.name, "My Model");
+        assert_eq!(model.family, "custom");
+        assert_eq!(model.version, "1.0.0");
+        assert_eq!(model.max_input_tokens, 128_000);
+        assert_eq!(model.max_output_tokens, 8_192);
+        assert_eq!(model.tooltip, "My Model via CC Switch");
+        assert!(model.capabilities.tool_calling);
+        assert_eq!(model.provider_id, "copilot-provider");
+    }
+
+    #[test]
+    fn provider_to_vscode_model_uses_explicit_settings() {
+        let provider = Provider::with_id(
+            "provider-1".to_string(),
+            "Ignored Name".to_string(),
+            json!({
+                "id": "gpt-4o",
+                "name": "GPT-4o",
+                "family": "openai",
+                "version": "4o",
+                "maxInputTokens": 999,
+                "maxOutputTokens": 111,
+                "tooltip": "Custom tooltip",
+                "capabilities": {
+                    "imageInput": true,
+                    "toolCalling": false
+                },
+                "base_url": "https://api.openai.com/v1"
+            }),
+            None,
+        );
+
+        let model = provider_to_vscode_model(&provider).expect("model should be generated");
+        assert_eq!(model.id, "gpt-4o");
+        assert_eq!(model.name, "GPT-4o");
+        assert_eq!(model.family, "openai");
+        assert_eq!(model.version, "4o");
+        assert_eq!(model.max_input_tokens, 999);
+        assert_eq!(model.max_output_tokens, 111);
+        assert_eq!(model.tooltip, "Custom tooltip");
+        assert!(model.capabilities.image_input);
+        assert!(!model.capabilities.tool_calling);
+        assert_eq!(model.provider_id, "provider-1");
+    }
+
+    #[test]
+    fn detects_vscode_copilot_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-cc-switch-app",
+            HeaderValue::from_static("vscode-copilot"),
+        );
+        assert!(is_vscode_copilot_request(&headers));
+    }
+
+    #[test]
+    fn model_match_uses_settings_config_id() {
+        let provider = Provider::with_id(
+            "provider-1".to_string(),
+            "Model A".to_string(),
+            json!({ "id": "model-a" }),
+            None,
+        );
+
+        assert!(model_matches_vscode_provider(&provider, "model-a"));
+        assert!(!model_matches_vscode_provider(&provider, "model-b"));
+    }
+}
+
 // ============================================================================
 // Claude API 处理器（包含格式转换逻辑）
 // ============================================================================
@@ -290,8 +504,13 @@ pub async fn handle_chat_completions(
     headers: axum::http::HeaderMap,
     Json(body): Json<Value>,
 ) -> Result<axum::response::Response, ProxyError> {
-    let mut ctx =
-        RequestContext::new(&state, &body, &headers, AppType::Codex, "Codex", "codex").await?;
+    let app_type = resolve_chat_app_type(&state, &headers, &body).await;
+    let (tag, app_type_str) = match app_type {
+        AppType::VscodeCopilot => ("VSCode Copilot", "vscode-copilot"),
+        _ => ("Codex", "codex"),
+    };
+    let mut ctx = RequestContext::new(&state, &body, &headers, app_type.clone(), tag, app_type_str)
+        .await?;
 
     let is_stream = body
         .get("stream")
@@ -299,13 +518,22 @@ pub async fn handle_chat_completions(
         .unwrap_or(false);
 
     let forwarder = ctx.create_forwarder(&state);
+    let providers = if matches!(app_type, AppType::VscodeCopilot) {
+        let request_model = body.get("model").and_then(|v| v.as_str()).unwrap_or("");
+        ctx.get_providers()
+            .into_iter()
+            .filter(|provider| model_matches_vscode_provider(provider, request_model))
+            .collect::<Vec<_>>()
+    } else {
+        ctx.get_providers()
+    };
     let result = match forwarder
         .forward_with_retry(
-            &AppType::Codex,
+            &app_type,
             "/chat/completions",
             body,
             headers,
-            ctx.get_providers(),
+            providers,
         )
         .await
     {

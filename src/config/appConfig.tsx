@@ -21,6 +21,7 @@ export const APP_IDS: AppId[] = [
   "gemini",
   "opencode",
   "openclaw",
+  "vscode-copilot",
 ];
 
 /** App IDs shown in MCP & Skills panels (excludes OpenClaw) */
@@ -78,5 +79,20 @@ export const APP_ICON_MAP: Record<AppId, AppConfig> = {
       "bg-rose-500/10 ring-1 ring-rose-500/20 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400",
     badgeClass:
       "bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 border-0 gap-1.5",
+  },
+  "vscode-copilot": {
+    label: "VSCode Copilot",
+    icon: (
+      <ProviderIcon
+        icon="copilot"
+        name="VSCode Copilot"
+        size={14}
+        showFallback={false}
+      />
+    ),
+    activeClass:
+      "bg-sky-500/10 ring-1 ring-sky-500/20 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400",
+    badgeClass:
+      "bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20 border-0 gap-1.5",
   },
 };

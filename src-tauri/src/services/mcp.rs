@@ -128,6 +128,10 @@ impl McpService {
                 // Skip for now
                 log::debug!("OpenClaw MCP support is still in development, skipping sync");
             }
+            AppType::VscodeCopilot => {
+                // VscodeCopilot doesn't need MCP support
+                log::debug!("VscodeCopilot does not support MCP, skipping sync");
+            }
         }
         Ok(())
     }
@@ -157,6 +161,10 @@ impl McpService {
                 // OpenClaw MCP support is still in development
                 log::debug!("OpenClaw MCP support is still in development, skipping remove");
             }
+            AppType::VscodeCopilot => {
+                // VscodeCopilot doesn't need MCP support
+                log::debug!("VscodeCopilot does not support MCP, skipping remove");
+            }
         }
         Ok(())
     }
@@ -166,7 +174,7 @@ impl McpService {
         let servers = Self::get_all_servers(state)?;
 
         for app in AppType::all() {
-            if matches!(app, AppType::OpenClaw) {
+            if matches!(app, AppType::OpenClaw | AppType::VscodeCopilot) {
                 continue;
             }
 

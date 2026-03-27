@@ -69,7 +69,9 @@ export function ProviderActions({
 
   // 累加模式应用（OpenCode 非 OMO 和 OpenClaw）
   const isAdditiveMode =
-    (appId === "opencode" && !isOmo) || appId === "openclaw";
+    (appId === "opencode" && !isOmo) ||
+    appId === "openclaw" ||
+    appId === "vscode-copilot";
 
   // 故障转移模式下的按钮逻辑（累加模式和 OMO 应用不支持故障转移）
   const isFailoverMode =

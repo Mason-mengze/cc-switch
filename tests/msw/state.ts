@@ -65,6 +65,7 @@ const createDefaultProviders = (): ProvidersByApp => ({
   },
   opencode: {},
   openclaw: {},
+  "vscode-copilot": {},
 });
 
 const createDefaultCurrent = (): CurrentProviderState => ({
@@ -73,6 +74,7 @@ const createDefaultCurrent = (): CurrentProviderState => ({
   gemini: "gemini-1",
   opencode: "",
   openclaw: "",
+  "vscode-copilot": "",
 });
 
 let providers = createDefaultProviders();
@@ -148,6 +150,7 @@ let mcpConfigs: McpConfigState = {
         gemini: false,
         opencode: false,
         openclaw: false,
+        "vscode-copilot": false,
       },
       server: {
         type: "stdio",
@@ -166,6 +169,7 @@ let mcpConfigs: McpConfigState = {
         gemini: false,
         opencode: false,
         openclaw: false,
+        "vscode-copilot": false,
       },
       server: {
         type: "http",
@@ -176,6 +180,7 @@ let mcpConfigs: McpConfigState = {
   gemini: {},
   opencode: {},
   openclaw: {},
+  "vscode-copilot": {},
 };
 
 const cloneProviders = (value: ProvidersByApp) =>
@@ -202,12 +207,13 @@ export const resetProviderState = () => {
         name: "Sample Claude Server",
         enabled: true,
         apps: {
-          claude: true,
-          codex: false,
-          gemini: false,
-          opencode: false,
-          openclaw: false,
-        },
+        claude: true,
+        codex: false,
+        gemini: false,
+        opencode: false,
+        openclaw: false,
+        "vscode-copilot": false,
+      },
         server: {
           type: "stdio",
           command: "claude-server",
@@ -220,12 +226,13 @@ export const resetProviderState = () => {
         name: "HTTP Codex Server",
         enabled: false,
         apps: {
-          claude: false,
-          codex: true,
-          gemini: false,
-          opencode: false,
-          openclaw: false,
-        },
+        claude: false,
+        codex: true,
+        gemini: false,
+        opencode: false,
+        openclaw: false,
+        "vscode-copilot": false,
+      },
         server: {
           type: "http",
           url: "http://localhost:3000",
@@ -235,6 +242,7 @@ export const resetProviderState = () => {
     gemini: {},
     opencode: {},
     openclaw: {},
+    "vscode-copilot": {},
   };
 };
 

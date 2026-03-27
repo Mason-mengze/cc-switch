@@ -85,7 +85,14 @@ const UnifiedSkillsPanel = React.forwardRef<
   const installFromZipMutation = useInstallSkillsFromZip();
 
   const enabledCounts = useMemo(() => {
-    const counts = { claude: 0, codex: 0, gemini: 0, opencode: 0, openclaw: 0 };
+    const counts: Record<AppId, number> = {
+      claude: 0,
+      codex: 0,
+      gemini: 0,
+      opencode: 0,
+      openclaw: 0,
+      "vscode-copilot": 0,
+    };
     if (!skills) return counts;
     skills.forEach((skill) => {
       for (const app of MCP_SKILLS_APP_IDS) {
@@ -562,6 +569,7 @@ const ImportSkillsDialog: React.FC<ImportSkillsDialogProps> = ({
           gemini: skill.foundIn.includes("gemini"),
           opencode: skill.foundIn.includes("opencode"),
           openclaw: false,
+          "vscode-copilot": false,
         },
       ]),
     ),
@@ -587,6 +595,7 @@ const ImportSkillsDialog: React.FC<ImportSkillsDialogProps> = ({
           gemini: false,
           opencode: false,
           openclaw: false,
+          "vscode-copilot": false,
         },
       })),
     );
@@ -629,6 +638,7 @@ const ImportSkillsDialog: React.FC<ImportSkillsDialogProps> = ({
                           gemini: false,
                           opencode: false,
                           openclaw: false,
+                          "vscode-copilot": false,
                         }
                       }
                       onToggle={(app, enabled) => {
@@ -641,6 +651,7 @@ const ImportSkillsDialog: React.FC<ImportSkillsDialogProps> = ({
                               gemini: false,
                               opencode: false,
                               openclaw: false,
+                              "vscode-copilot": false,
                             }),
                             [app]: enabled,
                           },

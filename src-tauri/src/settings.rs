@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{OnceLock, RwLock};
+#[cfg(unix)]
+use std::io::Write;
 
 use crate::app_config::AppType;
 use crate::error::AppError;
@@ -36,6 +37,8 @@ pub struct VisibleApps {
     pub opencode: bool,
     #[serde(default = "default_true")]
     pub openclaw: bool,
+    #[serde(default = "default_true", rename = "vscode-copilot")]
+    pub vscode_copilot: bool,
 }
 
 impl Default for VisibleApps {
@@ -46,6 +49,7 @@ impl Default for VisibleApps {
             gemini: true,
             opencode: true,
             openclaw: true,
+            vscode_copilot: true,
         }
     }
 }
@@ -59,6 +63,7 @@ impl VisibleApps {
             AppType::Gemini => self.gemini,
             AppType::OpenCode => self.opencode,
             AppType::OpenClaw => self.openclaw,
+            AppType::VscodeCopilot => self.vscode_copilot,
         }
     }
 }
@@ -223,6 +228,8 @@ pub struct AppSettings {
     pub opencode_config_dir: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub openclaw_config_dir: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vscode_copilot_config_dir: Option<String>,
 
     // ===== 当前供应商 ID（设备级）=====
     /// 当前 Claude 供应商 ID（本地存储，优先于数据库 is_current）
@@ -240,6 +247,9 @@ pub struct AppSettings {
     /// 当前 OpenClaw 供应商 ID（本地存储，对 OpenClaw 可能无意义，但保持结构一致）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub current_provider_openclaw: Option<String>,
+    /// 当前 VSCode Copilot 供应商 ID（本地存储，对 VscodeCopilot 无意义，但保持结构一致）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub current_provider_vscode_copilot: Option<String>,
 
     // ===== Skill 同步设置 =====
     /// Skill 同步方式：auto（默认，优先 symlink）、symlink、copy
@@ -301,11 +311,13 @@ impl Default for AppSettings {
             gemini_config_dir: None,
             opencode_config_dir: None,
             openclaw_config_dir: None,
+            vscode_copilot_config_dir: None,
             current_provider_claude: None,
             current_provider_codex: None,
             current_provider_gemini: None,
             current_provider_opencode: None,
             current_provider_openclaw: None,
+            current_provider_vscode_copilot: None,
             skill_sync_method: SyncMethod::default(),
             webdav_sync: None,
             webdav_backup: None,
@@ -357,6 +369,13 @@ impl AppSettings {
 
         self.openclaw_config_dir = self
             .openclaw_config_dir
+            .as_ref()
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+
+        self.vscode_copilot_config_dir = self
+            .vscode_copilot_config_dir
             .as_ref()
             .map(|s| s.trim())
             .filter(|s| !s.is_empty())
@@ -562,6 +581,14 @@ pub fn get_openclaw_override_dir() -> Option<PathBuf> {
         .map(|p| resolve_override_path(p))
 }
 
+pub fn get_vscode_copilot_override_dir() -> Option<PathBuf> {
+    let settings = settings_store().read().ok()?;
+    settings
+        .vscode_copilot_config_dir
+        .as_ref()
+        .map(|p| resolve_override_path(p))
+}
+
 // ===== 当前供应商管理函数 =====
 
 /// 获取指定应用类型的当前供应商 ID（从本地 settings 读取）
@@ -576,6 +603,7 @@ pub fn get_current_provider(app_type: &AppType) -> Option<String> {
         AppType::Gemini => settings.current_provider_gemini.clone(),
         AppType::OpenCode => settings.current_provider_opencode.clone(),
         AppType::OpenClaw => settings.current_provider_openclaw.clone(),
+        AppType::VscodeCopilot => settings.current_provider_vscode_copilot.clone(),
     }
 }
 
@@ -592,6 +620,7 @@ pub fn set_current_provider(app_type: &AppType, id: Option<&str>) -> Result<(), 
         AppType::Gemini => settings.current_provider_gemini = id.map(|s| s.to_string()),
         AppType::OpenCode => settings.current_provider_opencode = id.map(|s| s.to_string()),
         AppType::OpenClaw => settings.current_provider_openclaw = id.map(|s| s.to_string()),
+        AppType::VscodeCopilot => settings.current_provider_vscode_copilot = id.map(|s| s.to_string()),
     }
 
     update_settings(settings)

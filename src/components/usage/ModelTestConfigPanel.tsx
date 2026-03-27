@@ -26,6 +26,7 @@ export function ModelTestConfigPanel() {
     claudeModel: "claude-haiku-4-5-20251001",
     codexModel: "gpt-5.4@low",
     geminiModel: "gemini-3-pro-preview",
+    vscodeCopilotModel: "gpt-4o",
     testPrompt: "Who are you?",
   });
 
@@ -45,6 +46,7 @@ export function ModelTestConfigPanel() {
         claudeModel: data.claudeModel,
         codexModel: data.codexModel,
         geminiModel: data.geminiModel,
+        vscodeCopilotModel: data.vscodeCopilotModel,
         testPrompt: data.testPrompt || "Who are you?",
       });
     } catch (e) {
@@ -69,6 +71,7 @@ export function ModelTestConfigPanel() {
         claudeModel: config.claudeModel,
         codexModel: config.codexModel,
         geminiModel: config.geminiModel,
+        vscodeCopilotModel: config.vscodeCopilotModel,
         testPrompt: config.testPrompt || "Who are you?",
       };
       await saveStreamCheckConfig(parsed);
@@ -103,7 +106,7 @@ export function ModelTestConfigPanel() {
         <h4 className="text-sm font-medium text-muted-foreground">
           {t("streamCheck.testModels")}
         </h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <div className="space-y-2">
             <Label htmlFor="claudeModel">{t("streamCheck.claudeModel")}</Label>
             <Input
@@ -137,6 +140,20 @@ export function ModelTestConfigPanel() {
                 setConfig({ ...config, geminiModel: e.target.value })
               }
               placeholder="gemini-1.5-flash"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="vscodeCopilotModel">
+              {t("streamCheck.vscodeCopilotModel")}
+            </Label>
+            <Input
+              id="vscodeCopilotModel"
+              value={config.vscodeCopilotModel}
+              onChange={(e) =>
+                setConfig({ ...config, vscodeCopilotModel: e.target.value })
+              }
+              placeholder="gpt-4o"
             />
           </div>
         </div>

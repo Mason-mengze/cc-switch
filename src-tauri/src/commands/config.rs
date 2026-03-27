@@ -16,6 +16,14 @@ pub async fn get_claude_config_status() -> Result<ConfigStatus, String> {
 
 use std::str::FromStr;
 
+fn get_vscode_copilot_config_dir() -> std::path::PathBuf {
+    if let Some(custom) = settings::get_vscode_copilot_override_dir() {
+        return custom;
+    }
+
+    config::get_home_dir().join(".cc-switch").join("vscode-copilot")
+}
+
 fn invalid_json_format_error(error: serde_json::Error) -> String {
     let lang = settings::get_settings()
         .language
@@ -101,6 +109,13 @@ pub async fn get_config_status(app: String) -> Result<ConfigStatus, String> {
 
             Ok(ConfigStatus { exists, path })
         }
+        AppType::VscodeCopilot => {
+            let dir = get_vscode_copilot_config_dir();
+            Ok(ConfigStatus {
+                exists: dir.exists(),
+                path: dir.to_string_lossy().to_string(),
+            })
+        }
     }
 }
 
@@ -117,6 +132,7 @@ pub async fn get_config_dir(app: String) -> Result<String, String> {
         AppType::Gemini => crate::gemini_config::get_gemini_dir(),
         AppType::OpenCode => crate::opencode_config::get_opencode_dir(),
         AppType::OpenClaw => crate::openclaw_config::get_openclaw_dir(),
+        AppType::VscodeCopilot => get_vscode_copilot_config_dir(),
     };
 
     Ok(dir.to_string_lossy().to_string())
@@ -130,6 +146,7 @@ pub async fn open_config_folder(handle: AppHandle, app: String) -> Result<bool, 
         AppType::Gemini => crate::gemini_config::get_gemini_dir(),
         AppType::OpenCode => crate::opencode_config::get_opencode_dir(),
         AppType::OpenClaw => crate::openclaw_config::get_openclaw_dir(),
+        AppType::VscodeCopilot => get_vscode_copilot_config_dir(),
     };
 
     if !config_dir.exists() {
