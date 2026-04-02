@@ -307,6 +307,10 @@ export interface Settings {
   // Windows: "cmd" | "powershell" | "wt"
   // Linux: "gnome-terminal" | "konsole" | "xfce4-terminal" | "alacritty" | "kitty" | "ghostty"
   preferredTerminal?: string;
+
+  // ===== 认证设置 =====
+  // 是否使用内置浏览器进行 OAuth 登录（默认 false，使用系统默认浏览器）
+  useInternalBrowser?: boolean;
 }
 
 export interface SessionMeta {

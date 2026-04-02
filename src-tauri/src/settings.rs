@@ -205,6 +205,9 @@ pub struct AppSettings {
     /// User has confirmed the failover toggle first-run notice
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failover_confirmed: Option<bool>,
+    /// 是否使用内置浏览器进行 OAuth 登录
+    #[serde(default)]
+    pub use_internal_browser: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
 
@@ -294,6 +297,7 @@ impl Default for AppSettings {
             stream_check_confirmed: None,
             enable_failover_toggle: false,
             failover_confirmed: None,
+            use_internal_browser: false,
             language: None,
             visible_apps: None,
             claude_config_dir: None,

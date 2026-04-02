@@ -26,4 +26,7 @@ export type {
   ManagedAuthAccount,
   ManagedAuthStatus,
   ManagedAuthDeviceCodeResponse,
+  AuthBrowserConfig,
+  CredentialInfo,
+  DecryptedCredential,
 } from "./auth";

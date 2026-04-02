@@ -1,11 +1,13 @@
 mod app_config;
 mod app_store;
+mod auth_browser;
 mod auto_launch;
 mod claude_mcp;
 mod claude_plugin;
 mod codex_config;
 mod commands;
 mod config;
+mod credentials;
 mod database;
 mod deeplink;
 mod error;
@@ -239,6 +241,11 @@ pub fn run() {
         // 拦截窗口关闭：根据设置决定是否最小化到托盘
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                // 仅主窗口应用“关闭即最小化/退出”策略，子窗口（如 auth 浏览器）应直接关闭自身
+                if window.label() != "main" {
+                    return;
+                }
+
                 let settings = crate::settings::get_settings();
 
                 if settings.minimize_to_tray_on_close {
@@ -715,6 +722,20 @@ pub fn run() {
                 log::info!("✓ CopilotAuthManager initialized");
             }
 
+            // 初始化 AuthBrowserManager 和 CredentialsManager
+            {
+                use commands::{AuthBrowserState, CredentialsState};
+
+                // 浏览器管理器
+                app.manage(AuthBrowserState::default());
+                log::info!("✓ AuthBrowserManager initialized");
+
+                // 凭据管理器
+                let app_config_dir = crate::config::get_app_config_dir();
+                app.manage(CredentialsState::new(app_config_dir));
+                log::info!("✓ CredentialsManager initialized");
+            }
+
             // 初始化全局出站代理 HTTP 客户端
             {
                 let db = &app.state::<AppState>().db;
@@ -1103,6 +1124,20 @@ pub fn run() {
             commands::enter_lightweight_mode,
             commands::exit_lightweight_mode,
             commands::is_lightweight_mode,
+            // Internal browser auth
+            commands::open_auth_browser,
+            commands::open_copilot_auth_browser,
+            commands::close_auth_browser,
+            commands::close_auth_browser_for_provider,
+            commands::get_active_auth_browsers,
+            commands::inject_auth_browser_script,
+            // Credentials management
+            commands::save_auth_credential,
+            commands::get_auth_credentials,
+            commands::get_auth_credential,
+            commands::update_credential_last_used,
+            commands::delete_auth_credential,
+            commands::delete_all_auth_credentials,
         ]);
 
     let app = builder

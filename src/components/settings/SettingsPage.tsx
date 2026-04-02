@@ -9,6 +9,7 @@ import {
   ScrollText,
   HardDriveDownload,
   FlaskConical,
+  KeyRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -39,6 +40,7 @@ import { BackupListSection } from "@/components/settings/BackupListSection";
 import { WebdavSyncSection } from "@/components/settings/WebdavSyncSection";
 import { AboutSection } from "@/components/settings/AboutSection";
 import { ProxyTabContent } from "@/components/settings/ProxyTabContent";
+import { AuthCenterPanel } from "@/components/settings/AuthCenterPanel";
 import { ModelTestConfigPanel } from "@/components/usage/ModelTestConfigPanel";
 import { UsageDashboard } from "@/components/usage/UsageDashboard";
 import { LogConfigPanel } from "@/components/settings/LogConfigPanel";
@@ -189,16 +191,14 @@ export function SettingsPage({
           onValueChange={setActiveTab}
           className="flex flex-col h-full"
         >
-          <TabsList className="grid w-full grid-cols-5 mb-6 glass rounded-lg">
+          <TabsList className="grid w-full grid-cols-6 mb-6 glass rounded-lg">
             <TabsTrigger value="general">
               {t("settings.tabGeneral")}
             </TabsTrigger>
             <TabsTrigger value="proxy">{t("settings.tabProxy")}</TabsTrigger>
-            {/* HIDDEN: Copilot auth tab temporarily disabled - 用户反馈消耗过快
             <TabsTrigger value="auth">
               {t("settings.tabAuth", { defaultValue: "认证" })}
             </TabsTrigger>
-            */}
             <TabsTrigger value="advanced">
               {t("settings.tabAdvanced")}
             </TabsTrigger>
@@ -254,7 +254,6 @@ export function SettingsPage({
                 ) : null}
               </TabsContent>
 
-              {/* HIDDEN: Copilot auth tab temporarily disabled - 用户反馈消耗过快
               <TabsContent value="auth" className="space-y-6 mt-0 pb-4">
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
@@ -282,7 +281,6 @@ export function SettingsPage({
                   <AuthCenterPanel />
                 </motion.div>
               </TabsContent>
-              */}
 
               <TabsContent value="advanced" className="space-y-6 mt-0 pb-4">
                 {settings ? (

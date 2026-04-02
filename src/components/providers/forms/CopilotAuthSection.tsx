@@ -20,8 +20,10 @@ import {
   Plus,
   X,
   User,
+  ChevronDown,
 } from "lucide-react";
 import { useCopilotAuth } from "./hooks/useCopilotAuth";
+import { SavedCredentialsDialog } from "@/components/auth/SavedCredentialsDialog";
 import type { GitHubAccount } from "@/lib/api";
 
 interface CopilotAuthSectionProps {
@@ -44,6 +46,7 @@ export const CopilotAuthSection: React.FC<CopilotAuthSectionProps> = ({
 }) => {
   const { t } = useTranslation();
   const [copied, setCopied] = React.useState(false);
+  const [showCredentialsDialog, setShowCredentialsDialog] = React.useState(false);
 
   const {
     accounts,
@@ -57,11 +60,18 @@ export const CopilotAuthSection: React.FC<CopilotAuthSectionProps> = ({
     isAddingAccount,
     isRemovingAccount,
     isSettingDefaultAccount,
+    // 内置浏览器相关
+    useInternalBrowser,
+    savedCredentials,
+    // 操作
     addAccount,
+    startAuthWithCredential,
     removeAccount,
     setDefaultAccount,
     cancelAuth,
     logout,
+    saveCredential,
+    deleteCredential,
   } = useCopilotAuth();
 
   // 复制用户码
@@ -217,29 +227,60 @@ export const CopilotAuthSection: React.FC<CopilotAuthSectionProps> = ({
 
       {/* 未认证状态 - 登录按钮 */}
       {!hasAnyAccount && pollingState === "idle" && (
-        <Button
-          type="button"
-          onClick={addAccount}
-          className="w-full"
-          variant="outline"
-        >
-          <Github className="mr-2 h-4 w-4" />
-          {t("copilot.loginWithGitHub", "使用 GitHub 登录")}
-        </Button>
+        <>
+          {useInternalBrowser && savedCredentials.length > 0 ? (
+            <Button
+              type="button"
+              onClick={() => setShowCredentialsDialog(true)}
+              className="w-full"
+              variant="outline"
+            >
+              <Github className="mr-2 h-4 w-4" />
+              {t("copilot.loginWithGitHub", "使用 GitHub 登录")}
+              <ChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={addAccount}
+              className="w-full"
+              variant="outline"
+            >
+              <Github className="mr-2 h-4 w-4" />
+              {t("copilot.loginWithGitHub", "使用 GitHub 登录")}
+            </Button>
+          )}
+        </>
       )}
 
       {/* 已有账号 - 添加更多账号按钮 */}
       {hasAnyAccount && pollingState === "idle" && (
-        <Button
-          type="button"
-          onClick={addAccount}
-          className="w-full"
-          variant="outline"
-          disabled={isAddingAccount}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          {t("copilot.addAnotherAccount", "添加其他账号")}
-        </Button>
+        <>
+          {useInternalBrowser && savedCredentials.length > 0 ? (
+            <Button
+              type="button"
+              onClick={() => setShowCredentialsDialog(true)}
+              className="w-full"
+              variant="outline"
+              disabled={isAddingAccount}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {t("copilot.addAnotherAccount", "添加其他账号")}
+              <ChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={addAccount}
+              className="w-full"
+              variant="outline"
+              disabled={isAddingAccount}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {t("copilot.addAnotherAccount", "添加其他账号")}
+            </Button>
+          )}
+        </>
       )}
 
       {/* 轮询中状态 */}
@@ -339,6 +380,23 @@ export const CopilotAuthSection: React.FC<CopilotAuthSectionProps> = ({
           {t("copilot.logoutAll", "注销所有账号")}
         </Button>
       )}
+
+      {/* 已保存凭据选择对话框 */}
+      <SavedCredentialsDialog
+        open={showCredentialsDialog}
+        onOpenChange={setShowCredentialsDialog}
+        credentials={savedCredentials}
+        onSelect={(username) => {
+          if (username) {
+            startAuthWithCredential(username);
+          } else {
+            addAccount();
+          }
+        }}
+        onSave={saveCredential}
+        onDelete={deleteCredential}
+        isLoading={isAddingAccount}
+      />
     </div>
   );
 };
