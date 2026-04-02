@@ -309,7 +309,7 @@ export interface Settings {
   preferredTerminal?: string;
 
   // ===== 认证设置 =====
-  // 是否使用内置浏览器进行 OAuth 登录（默认 false，使用系统默认浏览器）
+  // 是否使用内置浏览器进行 OAuth 登录（默认 true）
   useInternalBrowser?: boolean;
 }
 

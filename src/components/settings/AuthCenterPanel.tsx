@@ -76,7 +76,7 @@ export function AuthCenterPanel() {
           </div>
           <Switch
             id="internal-browser"
-            checked={settings?.useInternalBrowser ?? false}
+            checked={settings?.useInternalBrowser ?? true}
             onCheckedChange={handleInternalBrowserToggle}
           />
         </div>

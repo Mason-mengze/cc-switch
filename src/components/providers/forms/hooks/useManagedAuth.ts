@@ -40,7 +40,7 @@ export function useManagedAuth(authProvider: ManagedAuthProvider) {
 
   // 获取设置
   const { data: settings } = useSettingsQuery();
-  const useInternalBrowser = settings?.useInternalBrowser ?? false;
+  const useInternalBrowser = settings?.useInternalBrowser ?? true;
 
   const {
     data: authStatus,

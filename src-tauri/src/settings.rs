@@ -206,7 +206,7 @@ pub struct AppSettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failover_confirmed: Option<bool>,
     /// 是否使用内置浏览器进行 OAuth 登录
-    #[serde(default)]
+    #[serde(default = "default_use_internal_browser")]
     pub use_internal_browser: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
@@ -282,6 +282,10 @@ fn default_minimize_to_tray_on_close() -> bool {
     true
 }
 
+fn default_use_internal_browser() -> bool {
+    true
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -297,7 +301,7 @@ impl Default for AppSettings {
             stream_check_confirmed: None,
             enable_failover_toggle: false,
             failover_confirmed: None,
-            use_internal_browser: false,
+            use_internal_browser: true,
             language: None,
             visible_apps: None,
             claude_config_dir: None,
