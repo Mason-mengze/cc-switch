@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { authApi, settingsApi } from "@/lib/api";
+import { copyText } from "@/lib/clipboard";
 import type {
   ManagedAuthProvider,
   ManagedAuthStatus,
@@ -180,7 +181,7 @@ export function useManagedAuth(authProvider: ManagedAuthProvider) {
       setError(null);
 
       try {
-        await navigator.clipboard.writeText(response.user_code);
+        await copyText(response.user_code);
       } catch (e) {
         console.debug("[ManagedAuth] Failed to copy user code:", e);
       }
